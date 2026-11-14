@@ -1,0 +1,156 @@
+import { Fragment, useState } from 'react';
+import type { DetectionReport, Settings } from '../../shared/types';
+import { api } from '../api';
+import { useApp } from '../context';
+import { LinkStep, openAccountStep } from '../Onboarding';
+import { Ambient, Icon, Toggle } from '../ui';
+
+export const SETTING_GROUPS: { title: string; rows: { key: keyof Settings; label: string; text: string }[] }[] = [
+  {
+    title: 'Lancement',
+    rows: [
+      { key: 'launchWindow', label: 'Afficher la fenêtre de lancement', text: 'La petite fenêtre « Optimised by Warmup » qui montre les contrôles avant chaque jeu. Désactivée, les contrôles continuent en silence.' },
+      { key: 'pauseDownloads', label: 'Mettre les téléchargements en pause pendant le jeu', text: 'Ils reprennent tout seuls à la fin de la partie.' }
+    ]
+  },
+  {
+    title: 'Corrections',
+    rows: [{ key: 'askBeforeFix', label: 'Demander mon accord avant chaque correction', text: 'Warmup montre ce qui va changer et attend votre réponse. Toute correction reste annulable depuis le journal.' }]
+  },
+  {
+    title: 'Données',
+    rows: [{ key: 'shareCatalog', label: 'Partager les pannes résolues avec le catalogue commun', text: 'Sans votre nom ni vos fichiers : seulement le jeu, le symptôme et la solution qui a marché.' }]
+  },
+  {
+    title: 'Général',
+    rows: [{ key: 'startWithWindows', label: 'Ouvrir Warmup au démarrage de Windows', text: 'L\'application reste discrète dans la zone de notification.' }]
+  }
+];
+
+export function SettingsPage() {
+  const { settings, updateSettings, account, updateAccount } = useApp();
+  return (
+    <div className="page">
+      <Ambient />
+      <div className="page-head">
+        <div>
+          <span className="eyebrow">Enregistrés tout de suite</span>
+          <h1 className="title">Réglages</h1>
+        </div>
+      </div>
+      <div className="settings">
+        {SETTING_GROUPS.map((group) => (
+          <Fragment key={group.title}>
+            <h2 className="h2">{group.title}</h2>
+            <div className="group">
+              {group.rows.map((row) => (
+                <div key={row.key} className="list-row" style={{ flexWrap: 'nowrap', gap: 24 }}>
+                  <div className="grow">
+                    <div className="strong">{row.label}</div>
+                    <div className="small muted" style={{ marginTop: 2 }}>{row.text}</div>
+                  </div>
+                  <Toggle checked={settings[row.key]} onChange={(next) => updateSettings({ [row.key]: next })} label={row.label} />
+                </div>
+              ))}
+            </div>
+          </Fragment>
+        ))}
+        <h2 className="h2">Compte</h2>
+        <div className="group">
+          <div className="list-row" style={{ flexWrap: 'nowrap', gap: 24 }}>
+            <div className="grow">
+              <div className="strong">{account.email}</div>
+              <div className="small muted" style={{ marginTop: 2 }}>{account.signedIn ? 'Connecté par lien e-mail, sans mot de passe.' : 'Un compte garde vos réglages et vos collections d\'un PC à l\'autre.'}</div>
+            </div>
+            <button type="button" className="btn" onClick={() => { openAccountStep(); updateAccount({ email: '', signedIn: false }); }}>Se déconnecter</button>
+          </div>
+          <div className="list-row" style={{ flexWrap: 'nowrap', gap: 24 }}>
+            <div className="grow">
+              <div className="strong">Revoir la configuration de départ</div>
+              <div className="small muted" style={{ marginTop: 2 }}>Compte, analyse du PC, jeux installés et plateformes, étape par étape.</div>
+            </div>
+            <button type="button" className="btn" onClick={() => updateAccount({ onboarded: false })}>Relancer</button>
+          </div>
+        </div>
+        <h2 className="h2">Plateformes</h2>
+        <div className="group">
+          <LinkStep linked={account.linked} onChange={(linked) => updateAccount({ linked })} />
+          <p className="small muted" style={{ paddingTop: 12 }}>La connexion se fait sur la page officielle de chaque plateforme : Warmup ne voit jamais votre mot de passe. Version de démonstration, aucune page ne s'ouvre encore.</p>
+        </div>
+        <h2 className="h2">Jeux installés</h2>
+        <div className="group"><Detection /></div>
+        <h2 className="h2">À propos</h2>
+        <div className="group">
+          <p className="muted" style={{ paddingTop: 16 }}>Warmup 0.2.0, version de développement. Les jeux sont réels ; les mesures, heures et incidents affichés sont des données d'exemple.</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Recherche des jeux installés : Warmup lit les fichiers tenus par Steam, Epic et GOG, sans rien modifier.
+function Detection() {
+  const [report, setReport] = useState<DetectionReport | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  const search = async () => {
+    setBusy(true);
+    setFailed(false);
+    try {
+      setReport(await api.detectGames());
+    } catch {
+      setFailed(true);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="detect">
+      <div className="list-row" style={{ flexWrap: 'nowrap', gap: 24 }}>
+        <div className="grow">
+          <div className="strong">Rechercher les jeux installés sur ce PC</div>
+          <div className="small muted" style={{ marginTop: 2 }}>Warmup lit la liste tenue par Steam, Epic Games et GOG. Rien n'est modifié et aucun jeu n'est ouvert.</div>
+        </div>
+        <button type="button" className="btn" onClick={search} disabled={busy}>
+          <Icon name="search" size={14} />{busy ? 'Recherche…' : report ? 'Relancer' : 'Rechercher'}
+        </button>
+      </div>
+
+      {failed && <p className="status status-warn" role="alert"><Icon name="warn" size={12} stroke={2.6} />La recherche n'a pas abouti. Réessayez dans un instant.</p>}
+
+      {report && (
+        <div aria-live="polite">
+          {report.example && <p className="small muted detect-note">Exemple de résultat : la vraie recherche se fait dans l'application installée, pas dans le navigateur.</p>}
+          <ul className="detect-stores">
+            {report.stores.map((store) => (
+              <li key={store.source}>
+                <span className="eyebrow">{store.source}</span>
+                <span className={store.found ? 'strong' : 'muted'}>{store.note}</span>
+              </li>
+            ))}
+          </ul>
+          {report.games.length === 0 ? (
+            <p className="muted">Aucun jeu trouvé pour l'instant.</p>
+          ) : (
+            report.games.map((game) => (
+              <div key={`${game.source}-${game.storeId}`} className="list-row detect-game">
+                <div className="grow" style={{ minWidth: 0 }}>
+                  <div className="strong">{game.title}</div>
+                  <div className="small muted detect-folder" title={game.folder}>{game.folder}</div>
+                </div>
+                <span className="small muted detect-size">{game.sizeGb === null ? 'Taille inconnue' : `${game.sizeGb.toLocaleString('fr-FR')} Go`}</span>
+                <span className="chip">{game.source}</span>
+                {!game.complete && <span className="chip warn"><Icon name="warn" size={11} stroke={2.6} />Installation inachevée</span>}
+                {game.libraryId
+                  ? <a className="link" href={`#/game/${game.libraryId}`}>Voir la fiche</a>
+                  : <span className="small muted">Pas encore dans la bibliothèque</span>}
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

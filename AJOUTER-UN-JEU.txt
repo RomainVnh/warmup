@@ -1,0 +1,169 @@
+AJOUTER UN JEU À LA BIBLIOTHÈQUE D'EXEMPLE
+==========================================
+
+Ce guide explique comment ajouter un jeu à la main dans les données d'exemple
+de Warmup. Ces données servent à travailler l'interface tant que la détection
+automatique des jeux sous Windows n'existe pas.
+
+Un jeu, c'est quatre choses :
+  1. un dossier de visuels          public/art/<identifiant>/
+  2. une fiche                      shared/mock-data.ts
+  3. ses succès (facultatif)        shared/achievements-data.ts
+  4. ses actualités (facultatif)    shared/news-data.ts
+
+L'<identifiant> est un nom court en minuscules, sans accent ni espace, avec des
+tirets. Exemple : hogwarts-legacy. Il doit être le même aux quatre endroits.
+
+
+ÉTAPE 1. LES VISUELS
+--------------------
+
+Créer le dossier public/art/<identifiant>/ et y placer :
+
+  hero.jpg     bannière horizontale, 1920 × 1080 au moins (obligatoire)
+  cover.jpg    jaquette verticale au format 2:3, par exemple 600 × 900 (obligatoire)
+  logo.png     logo du jeu sur fond transparent (facultatif)
+  shot1.jpg    captures du jeu en 1920 × 1080, de shot1.jpg à shot4.jpg
+  ...          (facultatif, mais la fiche est plus belle avec)
+
+Si le visuel de la bannière contient déjà le titre du jeu, ne pas fournir de
+logo et mettre « logo: null » dans la fiche : sinon le titre apparaît deux fois.
+
+Si une image manque ou ne se charge pas, l'interface affiche un fond sobre avec
+le titre du jeu. Rien ne casse.
+
+  Raccourci pour un jeu présent sur Steam
+  .......................................
+  Un script récupère tout seul les visuels officiels et la liste des succès :
+
+      python3 outils/ajouter-jeu-steam.py <identifiant> <numéro-Steam>
+
+  Exemple :
+
+      python3 outils/ajouter-jeu-steam.py hogwarts-legacy 990080
+
+  Le numéro Steam se lit dans l'adresse de la page du jeu sur le magasin :
+  store.steampowered.com/app/990080/... donne 990080.
+
+  Le script remplit public/art/<identifiant>/ et ajoute les succès dans
+  shared/achievements-data.ts (l'étape 3 est alors déjà faite). Il affiche aussi
+  le studio, la date de sortie et le résumé officiel, utiles pour l'étape 2.
+  S'il écrit « PAS DE LOGO », mettre « logo: null » dans la fiche.
+  Il a besoin d'une connexion à Internet et de la commande curl.
+
+
+ÉTAPE 2. LA FICHE DU JEU
+------------------------
+
+Ouvrir shared/mock-data.ts et aller à la liste « const games ». Ajouter un bloc
+à la fin de la liste, avant le crochet fermant « ]; », en le séparant du bloc
+précédent par une virgule :
+
+  game({
+    id: 'hogwarts-legacy',
+    title: 'Hogwarts Legacy : L\'Héritage de Poudlard',
+    source: 'Epic',
+    hours: 52,
+    sizeGb: 85,
+    lastPlayed: 'Il y a 4 mois',
+    recentRank: 21,
+    genre: 'Action et jeu de rôle en monde ouvert',
+    developer: 'Avalanche Software',
+    year: 2023,
+    version: '1.6',
+    summary: 'Deux ou trois phrases qui présentent le jeu.'
+  }),
+
+Champs obligatoires :
+
+  id           l'identifiant, le même que le nom du dossier de visuels
+  title        le titre affiché
+  source       la plateforme : 'Steam', 'Epic', 'GOG', 'Battle.net', 'Rockstar',
+               'Riot' ou 'Manuel' (jeu ajouté depuis un dossier du PC)
+  hours        heures de jeu
+  sizeGb       place sur le disque, en Go
+  lastPlayed   texte libre : 'Hier', 'Il y a 3 jours', 'Jamais lancé'...
+  recentRank   ordre dans « Jeux récents » : 1 pour le dernier joué, puis 2, 3...
+               Chaque jeu doit avoir un numéro différent.
+  genre        genre du jeu
+  summary      présentation du jeu
+
+Champs facultatifs (une valeur par défaut est utilisée sinon) :
+
+  developer    studio                              défaut : 'Studio indépendant'
+  year         année de sortie                     défaut : 2024
+  version      version installée                   défaut : '1.0'
+  favorite     true pour le mettre en favori       défaut : false
+  multiplayer  true si le jeu se joue en ligne     défaut : false
+  region       région des serveurs, ex. 'Europe'   défaut : aucune
+  modCount     nombre de mods installés            défaut : 0
+  logo         null s'il n'y a pas de logo.png     défaut : art/<id>/logo.png
+  friends      amis qui y jouent (voir les jeux existants pour le modèle)
+  reviews      avis des joueurs (idem)
+  status       'warn' si le jeu a un problème, avec statusLabel pour le décrire
+
+Attention aux apostrophes dans les textes : les écrire \' (antislash puis
+apostrophe), comme dans « L\'Héritage ».
+
+
+ÉTAPE 3. LES SUCCÈS (facultatif)
+--------------------------------
+
+Les succès sont rangés dans shared/achievements-data.ts, par identifiant de jeu.
+Pour un jeu Steam, le script de l'étape 1 s'en charge.
+
+Pour les écrire à la main, ajouter une entrée de cette forme :
+
+  "<identifiant>": [
+    { "name": "Nom du succès", "text": "Ce qu'il faut faire.", "hidden": false,
+      "rarity": 42.5, "icon": "art/<identifiant>/ach/mon-icone.jpg" }
+  ]
+
+  hidden   true pour un succès caché tant qu'il n'est pas obtenu
+  rarity   part des joueurs qui l'ont obtenu, en pour cent
+  icon     chemin de l'icône, ou "" s'il n'y en a pas
+
+Sans entrée pour le jeu, l'onglet Succès indique simplement qu'il n'y en a pas.
+Le nombre de succès marqués « obtenus » est calculé à partir des heures de jeu :
+il n'y a rien à régler.
+
+
+ÉTAPE 4. LES ACTUALITÉS (facultatif)
+------------------------------------
+
+Les actualités sont rangées dans shared/news-data.ts, par identifiant de jeu.
+Ajouter une entrée de cette forme, la plus récente en premier :
+
+  "<identifiant>": [
+    {
+      "tag": "Mise à jour",
+      "title": "Titre de l'article",
+      "date": "5 novembre 2026",
+      "text": "Une ou deux phrases de résumé.",
+      "image": "art/<identifiant>/news/1.jpg"
+    }
+  ]
+
+Placer l'image de l'article dans public/art/<identifiant>/news/. Si « image »
+vaut "", l'interface utilise une capture du jeu à la place.
+
+
+ÉTAPE 5. VÉRIFIER
+-----------------
+
+  npm run typecheck     doit passer sans erreur
+  npm run dev           ouvrir http://localhost:5173 et chercher le jeu
+                        dans la bibliothèque
+
+Si le jeu n'apparaît pas : vérifier la virgule entre les blocs de l'étape 2, et
+que l'identifiant est bien le même dans le dossier de visuels et dans la fiche.
+
+
+À SAVOIR
+--------
+
+- Les visuels, logos et icônes appartiennent aux éditeurs des jeux. Ils
+  conviennent pour une maquette, pas pour une application distribuée.
+- Les heures, amis, avis et incidents sont des données d'exemple inventées.
+- Sous Windows, les jeux seront détectés automatiquement : ce guide ne concerne
+  que les données d'exemple.

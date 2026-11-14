@@ -1,0 +1,14 @@
+Fichiers d'exemple pour tester la détection des jeux sans PC Windows.
+
+Ils reprennent la forme exacte des fichiers écrits par Steam, Epic et GOG.
+{{BIBLIOTHEQUE}} et {{DOSSIER}} sont remplacés par de vrais dossiers pendant les tests (npm test).
+
+steam-libraryfolders.vdf        liste des bibliothèques Steam (format actuel)
+steam-libraryfolders-ancien.vdf même liste, ancien format, avec des chemins Windows
+steam-appmanifest_1086940.acf   jeu installé (Baldur's Gate 3)
+steam-appmanifest_2246340.acf   jeu en cours de mise à jour (Monster Hunter Wilds)
+steam-appmanifest_228980.acf    outil de Steam, à ignorer
+epic-jeu.item                   jeu Epic installé
+epic-contenu.item               contenu additionnel, à ignorer
+epic-moteur.item                moteur Unreal, à ignorer
+gog-registre.txt                sortie de « reg query » pour les jeux GOG

@@ -1,0 +1,26 @@
+"libraryfolders"
+{
+	"0"
+	{
+		"path"		"{{BIBLIOTHEQUE-0}}"
+		"label"		""
+		"contentid"		"4458231960415221875"
+		"totalsize"		"0"
+		"apps"
+		{
+			"228980"		"452301875"
+		}
+	}
+	"1"
+	{
+		"path"		"{{BIBLIOTHEQUE-1}}"
+		"label"		"Jeux"
+		"contentid"		"7113320254875621004"
+		"totalsize"		"2000381014016"
+		"apps"
+		{
+			"1086940"		"149893971213"
+			"2246340"		"55082614521"
+		}
+	}
+}

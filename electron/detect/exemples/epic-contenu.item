@@ -1,0 +1,9 @@
+{
+	"AppCategories": ["public", "games", "addons"],
+	"DisplayName": "Rocket League : pack de démarrage",
+	"InstallLocation": "{{DOSSIER}}",
+	"InstallSize": 0,
+	"MainGameAppName": "Sugar",
+	"AppName": "SugarStarterPack",
+	"bIsApplication": false
+}

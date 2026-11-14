@@ -1,0 +1,13 @@
+{
+	"FormatVersion": 0,
+	"bIsIncompleteInstall": false,
+	"AppCategories": ["public", "games", "applications"],
+	"DisplayName": "Rocket League®",
+	"InstallLocation": "{{DOSSIER}}",
+	"InstallSize": 29420117811,
+	"MainGameAppName": "Sugar",
+	"AppName": "Sugar",
+	"CatalogItemId": "cc15684f44d849e89e9bf4cec0508b68",
+	"LaunchExecutable": "Binaries/Win64/RocketLeague.exe",
+	"bIsApplication": true
+}

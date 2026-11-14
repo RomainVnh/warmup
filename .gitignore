@@ -1,0 +1,15 @@
+node_modules
+dist
+dist-electron
+.env
+.env.*
+*.log
+.DS_Store
+installateurs
+
+# Doublons créés par iCloud (« nom 2.jpg », « dossier 2 »)
+* [0-9]
+* [0-9].*
+
+# Réglages locaux de l'assistant de code
+.claude/

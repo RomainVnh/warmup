@@ -1,0 +1,27 @@
+HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\GOG.com\Games
+
+HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\GOG.com\Games\1207664663
+    dependsOn    REG_SZ    
+    exe    REG_SZ    {{DOSSIER-WITCHER}}\bin\x64\witcher3.exe
+    gameID    REG_SZ    1207664663
+    gameName    REG_SZ    The Witcher 3: Wild Hunt
+    path    REG_SZ    {{DOSSIER-WITCHER}}
+    ver    REG_SZ    4.04
+
+HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\GOG.com\Games\1207664643
+    dependsOn    REG_SZ    1207664663
+    gameID    REG_SZ    1207664643
+    gameName    REG_SZ    The Witcher 3: Wild Hunt - Blood and Wine
+    path    REG_SZ    {{DOSSIER-WITCHER}}
+
+HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\GOG.com\Games\1423049311
+    dependsOn    REG_SZ    
+    gameID    REG_SZ    1423049311
+    gameName    REG_SZ    Cyberpunk 2077
+    path    REG_SZ    {{DOSSIER-CYBERPUNK}}
+
+HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\GOG.com\Games\1495134320
+    dependsOn    REG_SZ    
+    gameID    REG_SZ    1495134320
+    gameName    REG_SZ    Jeu supprime a la main
+    path    REG_SZ    {{DOSSIER-ABSENT}}
