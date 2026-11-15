@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { cleanText, isDirectory, readText } from './files';
+import { cleanText, fileExists, isDirectory, readText, safeProgram } from './files';
 import { parseRegOutput } from './registry';
 import type { FoundGame, StoreResult } from './types';
 
@@ -15,7 +15,11 @@ export function gamesFromRegistry(regOutput: string): FoundGame[] {
     const title = cleanText(values.gamename);
     const folder = (values.path ?? '').slice(0, 400);
     if (!id || !title || !folder || values.dependson) continue;
-    games.push({ source: 'GOG', storeId: id, title, folder: path.normalize(folder), sizeGb: null, complete: true });
+    const dir = path.normalize(folder);
+    // Le jeu se lance par son propre programme, à condition qu'il soit bien rangé dans le dossier du jeu.
+    const exe = values.exe ? path.normalize(values.exe) : '';
+    const launch = safeProgram(exe, dir) ? { kind: 'exe' as const, file: exe, args: [], cwd: dir } : null;
+    games.push({ source: 'GOG', storeId: id, title, folder: dir, sizeGb: null, complete: true, launch });
   }
   return games;
 }
@@ -28,7 +32,10 @@ export async function detectGog(regOutput: string): Promise<StoreResult> {
     // Le registre peut citer un jeu désinstallé à la main : on vérifie que son dossier existe encore.
     if (!(await isDirectory(game.folder))) continue;
     const info = await readText(path.join(game.folder, `goggame-${game.storeId}.info`));
-    games.push({ ...game, complete: info !== null });
+    // Désinstalleur posé par GOG dans le dossier du jeu.
+    const uninstaller = path.join(game.folder, 'unins000.exe');
+    const uninstall = (await fileExists(uninstaller)) ? { kind: 'exe' as const, file: uninstaller, args: [], cwd: game.folder } : null;
+    games.push({ ...game, complete: info !== null, uninstall });
   }
   return { source: 'GOG', found: regOutput.trim().length > 0, games };
 }

@@ -1,5 +1,5 @@
 // Types partagés entre l'interface et la partie système.
-// L'interface ne connaît le PC qu'à travers NominalApi : c'est la seule porte.
+// L'interface ne connaît le PC qu'à travers WarmupApi : c'est la seule porte.
 
 export type Status = 'ok' | 'warn';
 export type Source = 'Steam' | 'Epic' | 'GOG' | 'Battle.net' | 'Rockstar' | 'Riot' | 'Manuel';
@@ -87,6 +87,8 @@ export interface GraphicsAdvice {
 
 export interface PcPart { name: string; big: string; text: string; status: Status }
 export interface PcIssue { title: string; why: string; change: string; action: string; guideId?: string }
+/** Matériel du PC. example vaut vrai dans le navigateur, où rien ne peut être lu. */
+export interface PcReport { example: boolean; checkedAt: string; parts: PcPart[]; issues: PcIssue[] }
 export interface ServerState { game: string; region: string; ping: string; state: string; status: Status }
 export interface FixLog { what: string; detail: string }
 export interface Mod { order: number; name: string; note: string; version: string; state: string; level: 'ok' | 'warn' | 'update'; enabled: boolean }
@@ -126,8 +128,9 @@ export interface Report {
 
 export interface ModSet { gameId: string; headline: string; text: string; list: Mod[]; snapshots: ModSnapshot[] }
 
-export type DownloadState = 'active' | 'queued' | 'paused' | 'done';
-export interface Download { id: string; gameId: string; kind: 'install' | 'update'; label: string; sizeGb: number; doneGb: number; state: DownloadState; when: string }
+export type DownloadState = 'active' | 'queued' | 'paused' | 'done' | 'failed';
+/** error : pourquoi le téléchargement a échoué, en clair (seulement quand state vaut « failed »). */
+export interface Download { id: string; gameId: string; kind: 'install' | 'update'; label: string; sizeGb: number; doneGb: number; state: DownloadState; when: string; error?: string }
 
 export type NoticeKind = 'update' | 'friend' | 'achievement' | 'fix';
 export interface Notice {
@@ -286,8 +289,61 @@ export function cleanAccount(input: unknown, base: Account): Account {
   return next;
 }
 
+// Options de lancement propres à un jeu (bouton « Paramètres » de sa fiche).
+export type LaunchWindowChoice = 'default' | 'always' | 'never';
+export interface GameOptions {
+  /** Fenêtre de lancement : comme dans les réglages, toujours ou jamais pour ce jeu. */
+  launchWindow: LaunchWindowChoice;
+  /** Faux : le jeu s'ouvre directement, sans les contrôles avant lancement. */
+  checks: boolean;
+  /** Arguments transmis au jeu à chaque lancement, par exemple « -dx12 -skipintro ». */
+  args: string;
+}
+export const defaultGameOptions: GameOptions = { launchWindow: 'default', checks: true, args: '' };
+
+// Arguments : 200 caractères au plus, lettres, chiffres et quelques signes. Jamais de guillemets, de point-virgule
+// ni de symbole de commande : ce sont des réglages pour le jeu, pas un script.
+export const LAUNCH_ARGS = /^[A-Za-z0-9 _\-=.:+,/]{0,200}$/;
+export const splitArgs = (args: string): string[] => (LAUNCH_ARGS.test(args) ? args.split(/\s+/).filter(Boolean).slice(0, 20) : []);
+
+export function cleanGameOptions(input: unknown, base: GameOptions): GameOptions {
+  const next = { ...base };
+  if (!input || typeof input !== 'object') return next;
+  const raw = input as Record<string, unknown>;
+  if (raw.launchWindow === 'default' || raw.launchWindow === 'always' || raw.launchWindow === 'never') next.launchWindow = raw.launchWindow;
+  if (typeof raw.checks === 'boolean') next.checks = raw.checks;
+  if (typeof raw.args === 'string' && LAUNCH_ARGS.test(raw.args.trim())) next.args = raw.args.trim().replace(/\s+/g, ' ');
+  return next;
+}
+
+/** Toutes les options, par identifiant de jeu. Les jeux réglés comme par défaut n'y figurent pas. */
+export function cleanAllGameOptions(input: unknown): Record<string, GameOptions> {
+  const out: Record<string, GameOptions> = {};
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return out;
+  for (const [id, value] of Object.entries(input as Record<string, unknown>).slice(0, 500)) {
+    if (!GAME_ID.test(id)) continue;
+    const options = cleanGameOptions(value, defaultGameOptions);
+    if (JSON.stringify(options) !== JSON.stringify(defaultGameOptions)) out[id] = options;
+  }
+  return out;
+}
+
+/** Fichiers d'un jeu sur ce PC, tels que la détection les a trouvés. */
+export interface GameFiles {
+  /** Faux : Warmup n'a pas trouvé ce jeu sur le PC (ou ne peut pas le chercher, dans le navigateur). */
+  found: boolean;
+  example: boolean;
+  folder: string;
+  sizeGb: number | null;
+  source: DetectSource | null;
+  canUninstall: boolean;
+  canVerify: boolean;
+}
+/** Résultat d'une action sur un jeu : simulated vaut vrai quand rien n'a réellement été fait sur le PC. */
+export interface GameActionResult { ok: boolean; simulated: boolean; message: string }
+
 // Jeux trouvés sur le PC en lisant les fichiers de Steam, Epic et GOG.
-export type DetectSource = 'Steam' | 'Epic' | 'GOG';
+export type DetectSource = 'Steam' | 'Epic' | 'GOG' | 'Battle.net' | 'Rockstar' | 'Riot';
 export interface DetectedGame {
   source: DetectSource;
   /** Numéro ou nom du jeu chez la plateforme. */
@@ -300,6 +356,8 @@ export interface DetectedGame {
   complete: boolean;
   /** Jeu correspondant dans la bibliothèque de Warmup, null s'il n'y figure pas encore. */
   libraryId: string | null;
+  /** Vrai : le bouton « Jouer » lance réellement ce jeu. */
+  canLaunch: boolean;
 }
 export interface DetectedStore { source: DetectSource; found: boolean; note: string }
 export interface DetectionReport {
@@ -310,10 +368,12 @@ export interface DetectionReport {
 }
 
 // Déroulé d'un lancement : chaque contrôle validé, puis le résultat, puis le jeu.
-export type LaunchEvent = { type: 'step'; index: number } | { type: 'done' } | { type: 'started' };
+// started : real vaut vrai quand le jeu a réellement été ouvert, faux pour la simulation.
+// failed : le jeu n'a pas pu être ouvert ; reason l'explique en clair.
+export type LaunchEvent = { type: 'step'; index: number } | { type: 'done' } | { type: 'started'; real: boolean } | { type: 'failed'; reason: string };
 
 // Liste fermée des actions que l'interface peut demander.
-export interface NominalApi {
+export interface WarmupApi {
   getSnapshot(): Promise<Snapshot>;
   getSettings(): Promise<Settings>;
   setSettings(patch: Partial<Settings>): Promise<Settings>;
@@ -324,6 +384,17 @@ export interface NominalApi {
   setCollections(list: Collection[]): Promise<Collection[]>;
   getAccount(): Promise<Account>;
   setAccount(patch: Partial<Account>): Promise<Account>;
+  getGameOptions(): Promise<Record<string, GameOptions>>;
+  setGameOptions(gameId: string, patch: Partial<GameOptions>): Promise<Record<string, GameOptions>>;
+  /** Emplacement et taille d'un jeu installé, et ce que Warmup peut faire de ses fichiers. */
+  getGameFiles(gameId: string): Promise<GameFiles>;
+  openGameFolder(gameId: string): Promise<GameActionResult>;
+  /** Vérifie les fichiers par la plateforme du jeu (Steam). */
+  verifyGameFiles(gameId: string): Promise<GameActionResult>;
+  /** Désinstalle par le programme officiel de la plateforme, qui demande lui-même confirmation. */
+  uninstallGame(gameId: string): Promise<GameActionResult>;
+  /** Lit le matériel du PC (écran, carte graphique, mémoire…). Lecture seule. */
+  getPcReport(): Promise<PcReport>;
   /** Cherche les jeux installés sur le PC. Lecture seule. */
   detectGames(): Promise<DetectionReport>;
   startLaunch(gameId: string, onEvent: (event: LaunchEvent) => void): () => void;

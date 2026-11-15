@@ -62,6 +62,7 @@ Trois règles guident tout le reste :
 - **Bibliothèque** : recherche, filtres avancés (collection, plateforme, état, tri), affichage en jaquettes ou en liste, collections personnelles.
 - **Fiche de jeu** : aperçu, santé, réglages graphiques conseillés pour le PC, vrais succès Steam, amis, vraies actualités, avis.
 - **Bouton « Jouer »** : vert quand tout va bien, orange (« Corriger et jouer ») quand un point demande une correction. Un jeu non installé propose « Installer ».
+- **Paramètres de chaque jeu** : fenêtre de lancement, contrôles avant lancement, arguments transmis au jeu, emplacement des fichiers, vérification et désinstallation par la plateforme officielle.
 - **Fenêtre de lancement** : deux à trois secondes avant le jeu, elle montre les contrôles puis un résultat concret (« Optimised by Warmup »).
 
 **Comprendre et réparer**
@@ -84,9 +85,11 @@ L'interface est complète. Ce qui touche réellement au PC est en cours : tout f
 | Élément | État |
 | --- | --- |
 | Interface (toutes les pages) | Terminée |
-| Détection des jeux installés (Steam, Epic, GOG) | Écrite et testée sur des fichiers d'exemple, à vérifier sur un vrai PC |
+| Détection des jeux installés (Steam, Epic, GOG, Battle.net, Rockstar, Riot) | Écrite et testée sur des fichiers d'exemple, à vérifier sur un vrai PC |
+| Lecture du matériel (écran, carte graphique, mémoire, disque) | Fonctionne ; vérifiée sur Mac, à vérifier sous Windows |
+| Lancement d'un jeu détecté depuis « Jouer » | Écrit, à vérifier sur un vrai PC |
 | Installateurs Mac et Windows | Fabriqués, non signés |
-| Lancement d'un jeu, contrôles avant lancement | Simulés |
+| Contrôles avant lancement | Simulés |
 | Corrections, journal, bilans de partie | Simulés |
 | Compte, connexion par e-mail | Simulés (pas encore de serveur) |
 | Connexions officielles aux plateformes | À faire |
@@ -119,7 +122,9 @@ npm install
 npm run dev
 ```
 
-L'interface s'ouvre sur `http://localhost:5173`, avec les données d'exemple. Pour la vraie fenêtre de l'application :
+L'interface s'ouvre sur `http://localhost:5173`, avec les données d'exemple. Deux modes de démonstration montrent les états particuliers : `?demo=vide` (aucun jeu) et `?demo=hors-ligne` (pas de connexion), par exemple `http://localhost:5173/?demo=vide`.
+
+Pour la vraie fenêtre de l'application :
 
 ```bash
 npm run app:dev
@@ -145,8 +150,14 @@ warmup/
 ├── electron/                 Partie système : la seule qui touche au PC
 │   ├── main.ts               Fenêtre, actions autorisées, lecture et écriture des réglages
 │   ├── preload.ts            Pont sécurisé : la liste fermée des actions offertes à l'interface
+│   ├── hardware.ts           Lecture du matériel : écran, carte graphique, mémoire, disque
+│   ├── launch.ts             Ouverture réelle d'un jeu détecté
 │   └── detect/               Détection des jeux installés (lecture seule)
 │       ├── steam.ts          Bibliothèques et fiches de jeux Steam
+│       ├── battlenet.ts      Jeux Battle.net (liste des programmes installés)
+│       ├── rockstar.ts       Jeux du Rockstar Games Launcher
+│       ├── riot.ts           Jeux Riot (fichiers du Riot Client)
+│       ├── uninstall.ts      Lecture de la liste des programmes installés de Windows
 │       ├── epic.ts           Fichiers .item d'Epic Games
 │       ├── gog.ts            Jeux GOG, lus dans le registre Windows
 │       ├── registry.ts       Lecture du registre, limitée à des clés fixes
@@ -155,7 +166,7 @@ warmup/
 │       └── exemples/         Fichiers d'exemple qui servent aux tests
 │
 ├── shared/                   Ce que l'interface et la partie système ont en commun
-│   ├── types.ts              Types, contrat des actions (NominalApi), nettoyage des valeurs reçues
+│   ├── types.ts              Types, contrat des actions (WarmupApi), nettoyage des valeurs reçues
 │   ├── mock-data.ts          Jeux d'exemple
 │   ├── mock-extra.ts         Bilans, mods, amis, téléchargements, notifications, guides
 │   ├── achievements-data.ts  Vrais succès Steam de chaque jeu (fichier généré)
@@ -183,12 +194,11 @@ warmup/
 │
 ├── AJOUTER-UN-JEU.txt        Ajouter un jeu aux données d'exemple, pas à pas
 ├── INSTALLER-WARMUP.txt      Installer l'application sur un PC ou un Mac
+├── SOURCES.md                D'où viennent les visuels, succès et actualités de chaque jeu
 └── CLAUDE.md                 Règles du projet : architecture, sécurité, interface
 ```
 
 Les dossiers `dist/`, `dist-electron/`, `installateurs/` et `node_modules/` sont produits par les commandes et ne sont pas versionnés.
-
-> Le code garde par endroits l'ancien nom du projet, « Nominal » : `NominalApi` et `window.nominal`.
 
 ## Comment l'application est construite
 
@@ -196,7 +206,7 @@ L'interface et la partie système sont strictement séparées. L'interface ne pe
 
 ```mermaid
 flowchart LR
-    A["Interface<br>src/"] -- "window.nominal<br>(liste fermée d'actions)" --> B["Pont sécurisé<br>electron/preload.ts"]
+    A["Interface<br>src/"] -- "window.warmup<br>(liste fermée d'actions)" --> B["Pont sécurisé<br>electron/preload.ts"]
     B --> C["Partie système<br>electron/main.ts"]
     C --> D["PC : fichiers des plateformes,<br>registre, réglages"]
     A -. "dans le navigateur" .-> E["Actions factices<br>src/api.ts"]
@@ -206,7 +216,7 @@ flowchart LR
 
 Toute nouvelle action suit quatre étapes, dans cet ordre :
 
-1. La déclarer dans `NominalApi` (`shared/types.ts`).
+1. La déclarer dans `WarmupApi` (`shared/types.ts`).
 2. L'exposer dans `electron/preload.ts`.
 3. La traiter dans `electron/main.ts`, en vérifiant chaque valeur reçue.
 4. Ajouter sa version factice dans `src/api.ts`, pour que l'interface continue de fonctionner dans le navigateur.
@@ -238,7 +248,7 @@ Ces points ne se négocient pas :
 npm test
 ```
 
-Les tests construisent un faux PC dans un dossier temporaire, à partir des fichiers de `electron/detect/exemples/`, puis vérifient que la détection y retrouve les bons jeux : jeu installé, mise à jour en cours, outil à ignorer, contenu additionnel, fichier abîmé, PC sans aucune plateforme.
+Les tests construisent un faux PC dans un dossier temporaire, à partir des fichiers de `electron/detect/exemples/`, puis vérifient que la détection y retrouve les bons jeux sur les six plateformes : jeu installé, mise à jour en cours, outil à ignorer, contenu additionnel, jeu désinstallé à la main, fichier abîmé, PC sans aucune plateforme, et la manière de lancer chaque jeu. D'autres tests vérifient la lecture des réponses de Windows sur le matériel.
 
 ## Fabriquer les installateurs
 
@@ -251,9 +261,9 @@ Les deux commandes fonctionnent depuis un Mac et déposent leurs fichiers dans `
 
 ## Feuille de route
 
-- [ ] Vérifier la détection des jeux sur un vrai PC, puis l'étendre à Battle.net, Rockstar et Riot
+- [ ] Vérifier la détection des jeux, le matériel et le lancement sur un vrai PC
 - [ ] Remplacer la bibliothèque d'exemple par les jeux détectés
-- [ ] Vrais contrôles avant lancement et vrai lancement des jeux
+- [ ] Vrais contrôles avant lancement
 - [ ] Corrections réelles, avec le journal et l'annulation
 - [ ] Serveur : comptes, lien de connexion par e-mail, assistant
 - [ ] Connexions officielles aux plateformes
@@ -261,11 +271,10 @@ Les deux commandes fonctionnent depuis un Mac et déposent leurs fichiers dans `
 
 ## Avant de rendre le dépôt public
 
-Ce dépôt est privé pour l'instant. Trois points sont à régler avant de l'ouvrir :
+Ce dépôt est privé pour l'instant. Deux points sont à régler avant de l'ouvrir :
 
-- **Visuels des jeux.** `public/art/` et `docs/captures/` contiennent des jaquettes, logos, captures et icônes de succès qui appartiennent aux éditeurs des jeux. Ils servent ici de données d'exemple et ne doivent pas être publiés tels quels : il faudra les retirer de l'historique ou les remplacer.
+- **Visuels des jeux.** `public/art/` et `docs/captures/` contiennent des jaquettes, logos, captures et icônes de succès qui appartiennent aux éditeurs des jeux. Ils servent ici de données d'exemple et ne doivent pas être publiés tels quels : il faudra les retirer de l'historique ou les remplacer. La liste complète des fichiers concernés et de leur origine est dans [`SOURCES.md`](SOURCES.md).
 - **Licence.** Aucune n'est choisie : sans licence, personne d'autre n'a le droit de réutiliser le code.
-- **Nom interne.** Finir de remplacer « Nominal » par « Warmup » dans le code.
 
 ## Licence
 

@@ -42,7 +42,10 @@ export function readManifest(text: string, library: string): FoundGame | null {
     folder: path.join(library, 'steamapps', 'common', dir),
     sizeGb: bytesToGb(vdfText(state, 'sizeondisk')),
     // Le bit 4 signifie « entièrement installé » ; sinon, le jeu est en cours de téléchargement ou de mise à jour.
-    complete: Number.isFinite(flags) && (flags & 4) === 4
+    complete: Number.isFinite(flags) && (flags & 4) === 4,
+    launch: { kind: 'url', url: `steam://rungameid/${id}` },
+    uninstall: { kind: 'url', url: `steam://uninstall/${id}` },
+    verify: { kind: 'url', url: `steam://validate/${id}` }
   };
 }
 

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import type { Game, Source } from '../../shared/types';
 import { useApp } from '../context';
-import { GameArt, GameCard, Icon, Segmented, StatusText, hoursLabel, sourceLabel } from '../ui';
+import { EmptyState, GameArt, GameCard, Icon, Segmented, StatusText, hoursLabel, sourceLabel } from '../ui';
 
 type SourceFilter = 'all' | Source;
 type StateFilter = 'all' | 'ok' | 'warn' | 'favorites' | 'absent';
@@ -97,7 +97,9 @@ export function Library({ initialQuery }: { initialQuery: string }) {
         <div>
           <h1 className="title">Bibliothèque</h1>
           <p className="sub">
-            {data.games.length} jeux, dont {data.games.length - absentCount} installés ({totalGb} Go au total). {warnCount === 0 ? 'Tous sont prêts.' : `${warnCount} demande${warnCount > 1 ? 'nt' : ''} votre attention.`}
+            {data.games.length === 0
+              ? 'Aucun jeu pour l\'instant.'
+              : <>{data.games.length} jeu{data.games.length > 1 ? 'x' : ''}, dont {data.games.length - absentCount} installé{data.games.length - absentCount > 1 ? 's' : ''} ({totalGb} Go au total). {warnCount === 0 ? 'Tous sont prêts.' : `${warnCount} demande${warnCount > 1 ? 'nt' : ''} votre attention.`}</>}
           </p>
         </div>
         <div className="row">
@@ -107,6 +109,7 @@ export function Library({ initialQuery }: { initialQuery: string }) {
         </div>
       </div>
 
+      {data.games.length > 0 && (
       <div className="toolbar" style={{ marginBottom: 24 }}>
         <label className="field">
           <Icon name="search" size={14} />
@@ -163,6 +166,7 @@ export function Library({ initialQuery }: { initialQuery: string }) {
           <Segmented<View> label="Affichage" value={view} onChange={setView} options={[{ value: 'grid', label: 'Jaquettes' }, { value: 'list', label: 'Liste' }]} />
         </span>
       </div>
+      )}
 
       {(creating || collection) && (
         <div className="toolbar" style={{ marginBottom: 24 }}>
@@ -181,11 +185,31 @@ export function Library({ initialQuery }: { initialQuery: string }) {
         </div>
       )}
 
-      {games.length === 0 ? (
-        <div className="card">
-          <p className="strong">{collection && collection.gameIds.length === 0 ? `La collection « ${collection.name} » est vide.` : 'Aucun jeu ne correspond à ces filtres.'}</p>
-          <p className="muted">{collection && collection.gameIds.length === 0 ? 'Ouvrez la fiche d\'un jeu et utilisez le bouton « Collections » pour l\'y ranger.' : 'Essayez un autre nom, ou remettez la plateforme et l\'état sur « Tous ».'}</p>
-        </div>
+      {data.games.length === 0 ? (
+        <EmptyState
+          icon="grid"
+          title="Votre bibliothèque est vide"
+          actions={<>
+            <a className="btn btn-primary" href="#/settings/jeux"><Icon name="search" size={14} />Rechercher les jeux installés</a>
+            <button type="button" className="btn" onClick={() => notify('L\'ajout d\'un jeu à la main arrivera avec la version Windows.')}><Icon name="plus" size={14} />Ajouter un jeu</button>
+          </>}
+        >
+          Warmup n'a encore trouvé aucun jeu. Lancez la recherche : il lit la liste tenue par Steam, Epic Games, GOG, Battle.net, Rockstar et Riot, sans rien modifier.
+        </EmptyState>
+      ) : games.length === 0 ? (
+        collection && collection.gameIds.length === 0 ? (
+          <EmptyState icon="folder" title={`La collection « ${collection.name} » est vide`}>
+            Ouvrez la fiche d'un jeu et utilisez le bouton « Collections » pour l'y ranger.
+          </EmptyState>
+        ) : (
+          <EmptyState
+            icon="search"
+            title="Aucun jeu ne correspond"
+            actions={<button type="button" className="btn" onClick={() => { resetFilters(); setQuery(''); }}>Réinitialiser la recherche et les filtres</button>}
+          >
+            {query ? `Aucun jeu ne correspond à « ${query} » avec ces filtres.` : 'Aucun jeu ne correspond à ces filtres.'} Essayez un autre nom, ou remettez les filtres à zéro.
+          </EmptyState>
+        )
       ) : view === 'grid' ? (
         <div className="cover-grid">
           {games.map((g) => <GameCard key={g.id} game={g} />)}

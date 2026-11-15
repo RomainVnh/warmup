@@ -1,9 +1,9 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
-import type { Account, Collection, LaunchEvent, NominalApi, ProfileCard, Settings } from '../shared/types';
+import type { Account, Collection, GameOptions, LaunchEvent, WarmupApi, ProfileCard, Settings } from '../shared/types';
 
 // Le pont entre l'interface et la partie système.
 // Seules les actions listées ici existent du côté de l'interface.
-const api: NominalApi = {
+const api: WarmupApi = {
   getSnapshot: () => ipcRenderer.invoke('data:snapshot'),
   getSettings: () => ipcRenderer.invoke('settings:get'),
   setSettings: (patch: Partial<Settings>) => ipcRenderer.invoke('settings:set', patch),
@@ -13,6 +13,13 @@ const api: NominalApi = {
   setCollections: (list: Collection[]) => ipcRenderer.invoke('collections:set', list),
   getAccount: () => ipcRenderer.invoke('account:get'),
   setAccount: (patch: Partial<Account>) => ipcRenderer.invoke('account:set', patch),
+  getGameOptions: () => ipcRenderer.invoke('game-options:get'),
+  setGameOptions: (gameId: string, patch: Partial<GameOptions>) => ipcRenderer.invoke('game-options:set', gameId, patch),
+  getGameFiles: (gameId: string) => ipcRenderer.invoke('game:files', gameId),
+  openGameFolder: (gameId: string) => ipcRenderer.invoke('game:open-folder', gameId),
+  verifyGameFiles: (gameId: string) => ipcRenderer.invoke('game:verify', gameId),
+  uninstallGame: (gameId: string) => ipcRenderer.invoke('game:uninstall', gameId),
+  getPcReport: () => ipcRenderer.invoke('pc:report'),
   detectGames: () => ipcRenderer.invoke('games:detect'),
   startLaunch(gameId, onEvent) {
     const listener = (_event: IpcRendererEvent, launchEvent: LaunchEvent) => onEvent(launchEvent);
@@ -25,4 +32,4 @@ const api: NominalApi = {
   }
 };
 
-contextBridge.exposeInMainWorld('nominal', api);
+contextBridge.exposeInMainWorld('warmup', api);

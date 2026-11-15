@@ -18,7 +18,7 @@ function series(seed: string, count: number, base: number, spread: number): numb
 /* ───── Réglages graphiques conseillés (PC d'exemple : RTX 4060 8 Go, Ryzen 5, écran 2560 × 1440 à 144 Hz) ───── */
 
 const VERY_HEAVY = ['cyberpunk-2077', 'gta-6', 'black-myth-wukong', 'monster-hunter-wilds', 'fable', 'kingdom-come-deliverance-2'];
-const LIGHT = ['counter-strike-2', 'valorant', 'hades-2', 'hollow-knight-silksong', 'dragon-ball-sparking-zero'];
+const LIGHT = ['counter-strike-2', 'valorant', 'hades-2', 'hollow-knight-silksong', 'dragon-ball-sparking-zero', 'stardew-valley'];
 const FAST_SHOOTERS: Record<string, number> = { 'counter-strike-2': 310, valorant: 280 };
 
 export function graphicsFor(id: string): GraphicsAdvice {
@@ -321,6 +321,7 @@ export const downloads: { items: Download[]; speedMbPerSec: number; diskFreeGb: 
   items: [
     { id: 'bg3-correctif', gameId: 'baldurs-gate-3', kind: 'update', label: 'Mise à jour : correctif n° 36', sizeGb: 9.6, doneGb: 4.2, state: 'active', when: '' },
     { id: 'silksong-maj', gameId: 'hollow-knight-silksong', kind: 'update', label: 'Mise à jour 1.0.30000', sizeGb: 0.4, doneGb: 0, state: 'queued', when: '' },
+    { id: 'installation-hades-2', gameId: 'hades-2', kind: 'install', label: 'Installation', sizeGb: 10, doneGb: 3.4, state: 'failed', when: 'Il y a 3 h', error: 'La connexion a été coupée pendant le téléchargement. Rien n\'est perdu : il reprendra là où il s\'était arrêté.' },
     { id: 'cod-saison-1', gameId: 'call-of-duty-mw4', kind: 'update', label: 'Mise à jour : Saison 1', sizeGb: 18.2, doneGb: 18.2, state: 'done', when: 'Hier, 20 h 41' },
     { id: 'cyberpunk-2-5', gameId: 'cyberpunk-2077', kind: 'update', label: 'Mise à jour 2.5', sizeGb: 6.8, doneGb: 6.8, state: 'done', when: 'Hier, 18 h 04' }
   ]
@@ -331,6 +332,7 @@ export const downloads: { items: Download[]; speedMbPerSec: number; diskFreeGb: 
 export const notices: Notice[] = [
   { id: 'n1', kind: 'friend', title: 'Lina joue à Modern Warfare 4', text: 'En partie classée depuis 25 minutes. Vous pouvez la rejoindre.', when: 'Il y a 25 min', href: '#/friends/Lina', unread: true, friend: 'Lina', gameId: 'call-of-duty-mw4' },
   { id: 'n2', kind: 'fix', title: '2 mods incompatibles sur Cyberpunk 2077', text: 'Ils seront désactivés au prochain lancement, avec votre accord.', when: 'Il y a 1 h', href: '#/mods/cyberpunk-2077', unread: true, gameId: 'cyberpunk-2077' },
+  { id: 'n11', kind: 'update', title: 'Hades II : téléchargement interrompu', text: 'La connexion a été coupée à 3,4 Go sur 10 Go. Vous pouvez le reprendre là où il s\'était arrêté.', when: 'Il y a 3 h', href: '#/downloads', unread: true, gameId: 'hades-2' },
   { id: 'n3', kind: 'update', title: 'Baldur\'s Gate 3 : correctif n° 36 en cours', text: 'Le téléchargement de 9,6 Go a commencé.', when: 'Il y a 2 h', href: '#/downloads', unread: true, gameId: 'baldurs-gate-3' },
   { id: 'n4', kind: 'achievement', title: 'Succès obtenu : Membre de l\'expédition', text: 'Clair Obscur : Expedition 33. Atteindre le niveau 33.', when: 'Hier, 23 h 10', href: '#/game/expedition-33?tab=succes', unread: false, gameId: 'expedition-33', achievement: 'Membre de l\'expédition' },
   { id: 'n9', kind: 'achievement', title: 'Succès obtenu : En bonne compagnie', text: 'Red Dead Redemption 2. Terminez une activité avec un camarade dans chaque camp.', when: 'Hier, 22 h 40', href: '#/game/red-dead-redemption-2?tab=succes', unread: false, gameId: 'red-dead-redemption-2', achievement: 'En bonne compagnie' },

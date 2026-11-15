@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../context';
-import { GameArt, GameCard, GameLogo, Pill, PlayButton, Segmented, sourceLabel } from '../ui';
+import { EmptyState, GameArt, GameCard, GameLogo, Icon, Pill, PlayButton, Segmented, sourceLabel } from '../ui';
 
 type Shelf = 'recent' | 'favorites' | 'check';
 const DAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
@@ -31,6 +31,33 @@ export function Home() {
   const maxHours = Math.max(...data.week.hours);
   const lastReport = data.reports[0];
   const reportGame = data.games.find((g) => g.id === lastReport?.gameId);
+
+  // Aucun jeu installé : pas de grand visuel, mais ce qu'il faut faire pour commencer.
+  if (!featured) {
+    const owned = data.games.filter((g) => !onDisk.has(g.id));
+    return (
+      <div className="page home-empty">
+        <EmptyState
+          icon="play"
+          title={owned.length ? 'Aucun jeu installé pour l\'instant' : 'Bienvenue dans Warmup'}
+          actions={<>
+            <a className="btn btn-primary" href="#/settings/jeux"><Icon name="search" size={14} />Rechercher les jeux installés</a>
+            <a className="btn" href="#/library">Ouvrir la bibliothèque</a>
+          </>}
+        >
+          {owned.length
+            ? `Vous possédez ${owned.length} jeu${owned.length > 1 ? 'x' : ''} qui ne ${owned.length > 1 ? 'sont' : 'est'} pas encore sur ce PC. Installez-en un, ou laissez Warmup retrouver ceux qui sont déjà installés.`
+            : 'Warmup n\'a encore trouvé aucun jeu sur ce PC. Lancez la recherche : il lit la liste de vos plateformes, sans rien modifier.'}
+        </EmptyState>
+        {owned.length > 0 && (
+          <section className="section" aria-label="Jeux à installer">
+            <div className="section-head"><h2 className="h2">Prêts à installer</h2></div>
+            <div className="shelf">{owned.slice(0, 12).map((g) => <GameCard key={g.id} game={g} />)}</div>
+          </section>
+        )}
+      </div>
+    );
+  }
 
   return (
     <>

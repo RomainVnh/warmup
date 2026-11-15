@@ -25,6 +25,14 @@ export async function listFiles(dir: string, max = 3000): Promise<string[]> {
   }
 }
 
+export async function fileExists(file: string): Promise<boolean> {
+  try {
+    return (await fs.stat(file)).isFile();
+  } catch {
+    return false;
+  }
+}
+
 export async function isDirectory(dir: string): Promise<boolean> {
   try {
     return (await fs.stat(dir)).isDirectory();
@@ -45,6 +53,14 @@ export function bytesToGb(value: unknown): number | null {
   const bytes = typeof value === 'number' ? value : typeof value === 'string' && /^\d{1,16}$/.test(value) ? Number(value) : NaN;
   if (!Number.isFinite(bytes) || bytes <= 0) return null;
   return Math.round((bytes / 1024 ** 3) * 10) / 10;
+}
+
+/** Un programme Windows ou Mac, désigné par un chemin complet, et rangé dans `folder` quand il est donné. */
+export function safeProgram(file: string, folder?: string): boolean {
+  if (!file || file.length > 400 || !path.isAbsolute(file) || !/\.(exe|app)$/i.test(file)) return false;
+  if (!folder) return true;
+  const inside = path.relative(path.normalize(folder), path.normalize(file));
+  return inside !== '' && !inside.startsWith('..') && !path.isAbsolute(inside);
 }
 
 /** Deux chemins désignent-ils le même dossier ? (Windows ne distingue pas les majuscules.) */

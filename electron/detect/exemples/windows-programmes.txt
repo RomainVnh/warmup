@@ -1,0 +1,41 @@
+HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall
+
+HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\7-Zip
+    DisplayName    REG_SZ    7-Zip 23.01
+    InstallLocation    REG_SZ    C:\Program Files\7-Zip\
+    UninstallString    REG_SZ    "C:\Program Files\7-Zip\Uninstall.exe"
+
+HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Battle.net
+    DisplayName    REG_SZ    Battle.net
+    InstallLocation    REG_SZ    {{BATTLENET}}
+    Publisher    REG_SZ    Blizzard Entertainment
+    UninstallString    REG_SZ    "{{BATTLENET}}\Battle.net Uninstaller.exe" --lang=frFR --uid=battle.net --displayname="Battle.net"
+
+HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Diablo IV
+    DisplayName    REG_SZ    Diablo IV
+    EstimatedSize    REG_DWORD    0x5800000
+    InstallLocation    REG_SZ    {{DIABLO}}
+    Publisher    REG_SZ    Blizzard Entertainment
+    UninstallString    REG_SZ    "{{AGENT}}\Blizzard Uninstaller.exe" --lang=frFR --uid=fenris --displayname="Diablo IV"
+
+HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Jeu Blizzard inconnu
+    DisplayName    REG_SZ    Jeu Blizzard inconnu
+    InstallLocation    REG_SZ    {{INCONNU}}
+    UninstallString    REG_SZ    "{{AGENT}}\Blizzard Uninstaller.exe" --lang=frFR --uid=zzzz --displayname="Jeu Blizzard inconnu"
+
+HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Rockstar Games Launcher
+    DisplayName    REG_SZ    Rockstar Games Launcher
+    InstallLocation    REG_SZ    {{ROCKSTAR}}
+    UninstallString    REG_SZ    "{{ROCKSTAR}}\uninstall.exe"
+
+HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Red Dead Redemption 2
+    DisplayName    REG_SZ    Red Dead Redemption 2
+    EstimatedSize    REG_DWORD    0x7a00000
+    InstallLocation    REG_SZ    {{RDR2}}
+    Publisher    REG_SZ    Rockstar Games
+    UninstallString    REG_SZ    "{{ROCKSTAR}}\Launcher.exe" -uninstall=rdr2
+
+HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Grand Theft Auto V
+    DisplayName    REG_SZ    Grand Theft Auto V
+    InstallLocation    REG_SZ    {{ABSENT}}
+    UninstallString    REG_SZ    "{{ROCKSTAR}}\Launcher.exe" -uninstall=gta5

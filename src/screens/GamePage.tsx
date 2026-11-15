@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { Game } from '../../shared/types';
 import { findGame, useApp } from '../context';
+import { GameSettings } from '../GameSettings';
 import { GameArt, GameLogo, Icon, PlayButton, Ring, Segmented, Stat, StatusText, sourceLabel } from '../ui';
 
 const shot = (game: Game, index: number) => (game.screenshots.length ? game.screenshots[index % game.screenshots.length] : game.art);
@@ -19,8 +20,9 @@ type TabId = (typeof TABS)[number]['id'];
 const CHANGE_TAGS = ['Cause probable', 'À surveiller', 'Sans risque'];
 
 export function GamePage({ id, initialTab }: { id: string; initialTab: string }) {
-  const { data, play, favorites, toggleFavorite, notify, installed } = useApp();
+  const { data, play, favorites, toggleFavorite, installed } = useApp();
   const game = findGame(data, id);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [tab, setTab] = useState<TabId>(TABS.some((t) => t.id === initialTab) ? (initialTab as TabId) : 'apercu');
 
   if (!game) {
@@ -77,11 +79,12 @@ export function GamePage({ id, initialTab }: { id: string; initialTab: string })
           <button type="button" className="btn btn-icon" aria-pressed={favorite} aria-label={favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'} onClick={() => toggleFavorite(game.id)}>
             <Icon name="star" filled={favorite} />
           </button>
-          <button type="button" className="btn btn-icon" aria-label="Options de lancement" onClick={() => notify('Les options de lancement arriveront avec la version Windows.')}>
+          <button type="button" className="btn btn-icon" aria-label={`Paramètres de ${game.title} : lancement, fichiers, désinstallation`} title="Paramètres du jeu" aria-haspopup="dialog" onClick={() => setSettingsOpen(true)}>
             <Icon name="gear" />
           </button>
         </div>
       </div>
+      {settingsOpen && <GameSettings game={game} onClose={() => setSettingsOpen(false)} />}
 
       <div className="tabs" role="tablist" aria-label="Sections de la fiche">
         {TABS.map((t) => (

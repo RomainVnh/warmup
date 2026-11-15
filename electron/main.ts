@@ -2,9 +2,11 @@ import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
 import { snapshot } from '../shared/mock-data';
-import { detectGames } from './detect';
+import { detectAll, type MatchedGame } from './detect';
+import { readPc } from './hardware';
+import { openFolder, openGame, withArgs } from './launch';
 import { simulateLaunch } from '../shared/launch-sim';
-import { cleanAccount, cleanCollections, cleanProfileCard, defaultAccount, defaultProfileCard, defaultSettings, settingKeys, type Account, type Collection, type LaunchEvent, type ProfileCard, type Settings } from '../shared/types';
+import { cleanAccount, cleanAllGameOptions, cleanGameOptions, cleanCollections, defaultGameOptions, splitArgs, cleanProfileCard, defaultAccount, defaultProfileCard, defaultSettings, settingKeys, type Account, type Collection, type GameActionResult, type GameFiles, type GameOptions, type LaunchEvent, type ProfileCard, type Settings } from '../shared/types';
 
 // Partie système. C'est le seul endroit qui a le droit de toucher au PC.
 // Pour l'instant elle répond avec des données factices (shared/mock-data.ts).
@@ -108,6 +110,27 @@ function writeAccount(value: Account): void {
 }
 
 let account: Account = { ...defaultAccount };
+
+// Options de lancement de chaque jeu (fiche du jeu > Paramètres).
+const gameOptionsFile = () => path.join(app.getPath('userData'), 'game-options.json');
+let gameOptions: Record<string, GameOptions> = {};
+function readGameOptions(): Record<string, GameOptions> {
+  try {
+    return cleanAllGameOptions(JSON.parse(fs.readFileSync(gameOptionsFile(), 'utf8')));
+  } catch {
+    return {};
+  }
+}
+const optionsFor = (id: string): GameOptions => gameOptions[id] ?? defaultGameOptions;
+const knownGame = (gameId: unknown) => (typeof gameId === 'string' ? snapshot.games.find((g) => g.id === gameId) : undefined);
+
+// Dernière recherche des jeux installés. Elle reste ici : les manières de lancer ne quittent jamais la partie système.
+let found: MatchedGame[] | null = null;
+async function detect() {
+  const result = await detectAll(snapshot.games.map((g) => ({ id: g.id, title: g.title })));
+  found = result.found;
+  return result;
+}
 let collections: Collection[] = cleanCollections(undefined);
 let settings: Settings = { ...defaultSettings };
 let cancelLaunch: (() => void) | null = null;
@@ -146,15 +169,88 @@ function registerActions(): void {
   });
 
   // Aucun paramètre : l'interface ne choisit ni les dossiers ni les clés lus.
-  ipcMain.handle('games:detect', () => detectGames(snapshot.games.map((g) => ({ id: g.id, title: g.title }))));
+  ipcMain.handle('games:detect', async () => (await detect()).report);
+  ipcMain.handle('pc:report', () => readPc());
 
-  ipcMain.on('launch:start', (event, gameId: unknown) => {
+  ipcMain.handle('game-options:get', () => gameOptions);
+  ipcMain.handle('game-options:set', (_event, gameId: unknown, patch: unknown) => {
+    const game = knownGame(gameId);
+    if (!game) return gameOptions; // identifiant inconnu : rien ne change
+    gameOptions = cleanAllGameOptions({ ...gameOptions, [game.id]: cleanGameOptions(patch, optionsFor(game.id)) });
+    try {
+      fs.writeFileSync(gameOptionsFile(), JSON.stringify(gameOptions, null, 2), 'utf8');
+    } catch {
+      // Les options valent au moins pour cette session.
+    }
+    return gameOptions;
+  });
+
+  // Fichiers d'un jeu : seule la partie système connaît les dossiers et les programmes ; l'interface envoie un identifiant.
+  const installedCopy = async (gameId: unknown) => {
+    const game = knownGame(gameId);
+    return game ? (found ?? (await detect()).found).find((g) => g.libraryId === game.id) : undefined;
+  };
+  ipcMain.handle('game:files', async (_event, gameId: unknown): Promise<GameFiles> => {
+    const copy = await installedCopy(gameId);
+    if (!copy) return { found: false, example: false, folder: '', sizeGb: null, source: null, canUninstall: false, canVerify: false };
+    return { found: true, example: false, folder: copy.folder, sizeGb: copy.sizeGb, source: copy.source, canUninstall: Boolean(copy.uninstall), canVerify: Boolean(copy.verify) };
+  });
+  const notFound: GameActionResult = { ok: false, simulated: false, message: 'Warmup n\'a pas trouvé ce jeu sur ce PC. Relancez la recherche des jeux dans les réglages.' };
+  ipcMain.handle('game:open-folder', async (_event, gameId: unknown): Promise<GameActionResult> => {
+    const copy = await installedCopy(gameId);
+    if (!copy) return notFound;
+    const result = await openFolder(copy.folder);
+    return result.ok ? { ok: true, simulated: false, message: 'Le dossier du jeu est ouvert.' } : { ok: false, simulated: false, message: result.reason };
+  });
+  ipcMain.handle('game:verify', async (_event, gameId: unknown): Promise<GameActionResult> => {
+    const copy = await installedCopy(gameId);
+    if (!copy) return notFound;
+    if (!copy.verify) return { ok: false, simulated: false, message: `La vérification des fichiers se fait depuis ${copy.source}.` };
+    const result = await openGame(copy.verify);
+    return result.ok ? { ok: true, simulated: false, message: `${copy.source} vérifie les fichiers du jeu et répare ceux qui manquent.` } : { ok: false, simulated: false, message: result.reason };
+  });
+  ipcMain.handle('game:uninstall', async (_event, gameId: unknown): Promise<GameActionResult> => {
+    const copy = await installedCopy(gameId);
+    if (!copy) return notFound;
+    if (!copy.uninstall) return { ok: false, simulated: false, message: `Warmup ne sait pas encore désinstaller les jeux ${copy.source}. Faites-le depuis ${copy.source} : clic droit sur le jeu, puis Désinstaller.` };
+    const result = await openGame(copy.uninstall);
+    if (!result.ok) return { ok: false, simulated: false, message: result.reason };
+    found = null; // la prochaine recherche tiendra compte de la désinstallation
+    return { ok: true, simulated: false, message: `Le programme de désinstallation de ${copy.source} s'est ouvert. Confirmez-y la désinstallation.` };
+  });
+
+  ipcMain.on('launch:start', async (event, gameId: unknown) => {
     const game = typeof gameId === 'string' ? snapshot.games.find((g) => g.id === gameId) : undefined;
     if (!game) return; // Identifiant inconnu : on ne fait rien.
     cancelLaunch?.();
-    cancelLaunch = simulateLaunch(game.launch.steps.length, (launchEvent: LaunchEvent) => {
+    const send = (launchEvent: LaunchEvent) => {
       if (!event.sender.isDestroyed()) event.sender.send('launch:event', launchEvent);
+    };
+    // Le jeu est-il réellement installé sur ce PC, avec une manière connue de le lancer ?
+    const installed = (found ?? (await detect()).found).find((g) => g.libraryId === game.id && g.complete && g.launch);
+    const options = optionsFor(game.id);
+    const plan = installed?.launch ? withArgs(installed.launch, splitArgs(options.args)) : null;
+    let cancelled = false;
+    const start = () => {
+      if (!plan) return send({ type: 'started', real: false });
+      void openGame(plan).then((result) => {
+        if (!cancelled) send(result.ok ? { type: 'started', real: true } : { type: 'failed', reason: result.reason });
+      });
+    };
+    // Contrôles désactivés pour ce jeu : il s'ouvre tout de suite.
+    if (!options.checks) {
+      start();
+      cancelLaunch = () => { cancelled = true; };
+      return;
+    }
+    const stopSimulation = simulateLaunch(game.launch.steps.length, (launchEvent: LaunchEvent) => {
+      if (launchEvent.type !== 'started') return send(launchEvent);
+      start();
     });
+    cancelLaunch = () => {
+      cancelled = true;
+      stopSimulation();
+    };
   });
 
   ipcMain.on('launch:cancel', () => {
@@ -201,6 +297,7 @@ app.whenReady().then(() => {
   profileCard = readProfileCard();
   collections = readCollections();
   account = readAccount();
+  gameOptions = readGameOptions();
   if (process.platform === 'darwin' && fs.existsSync(iconFile)) app.dock?.setIcon(iconFile);
   registerActions();
   createWindow();

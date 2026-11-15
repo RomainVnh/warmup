@@ -70,7 +70,7 @@ export function ProfilePage() {
   return (
     <div className="page">
       <header className="banner profile-banner">
-        <GameArt game={banner} kind="art" />
+        {banner && <GameArt game={banner} kind="art" />}
         <div className="row" style={{ gap: 24, alignItems: 'flex-end' }}>
           <UserAvatar name={displayName} image={profileCard.avatar} className="xl" />
           <div>
@@ -80,7 +80,7 @@ export function ProfilePage() {
             <div className="row" style={{ marginTop: 14 }}>
               {platforms[0] && <span className="chip">Joue surtout sur {platforms[0][0]}</span>}
               {genres[0] && <span className="chip">{genres[0][0]}</span>}
-              <span className="chip">Bannière : {banner.title}</span>
+              {banner && <span className="chip">Bannière : {banner.title}</span>}
             </div>
           </div>
         </div>
@@ -125,7 +125,7 @@ export function ProfilePage() {
             <span className="eyebrow" style={{ marginBottom: 12 }}>Bannière · choisissez un jeu</span>
             <div className="picks">
               {games.map((g) => (
-                <button key={g.id} type="button" className="pick" aria-pressed={banner.id === g.id} aria-label={`Bannière : ${g.title}`} title={g.title} onClick={() => updateProfileCard({ bannerGameId: g.id })}>
+                <button key={g.id} type="button" className="pick" aria-pressed={banner?.id === g.id} aria-label={`Bannière : ${g.title}`} title={g.title} onClick={() => updateProfileCard({ bannerGameId: g.id })}>
                   <GameArt game={g} kind="art" />
                 </button>
               ))}

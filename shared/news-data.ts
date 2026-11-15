@@ -545,5 +545,267 @@ export const gameNews: Record<string, NewsItem[]> = {
       "text": "Un nouveau mode « Limit Breaker Journey », de nouveaux personnages, des combats d'épisode et de nouvelles cartes.",
       "image": "art/dragon-ball-sparking-zero/news/3.jpg"
     }
+  ],
+  "sekiro": [
+    {
+      "tag": "Communauté",
+      "title": "Les Steam Awards sont là",
+      "date": "3 décembre 2019",
+      "text": "FromSoftware remercie les joueurs pour leur soutien depuis la sortie : Sekiro est en lice aux Steam Awards.",
+      "image": "art/sekiro/news/1.jpg"
+    }
+  ],
+  "stardew-valley": [
+    {
+      "tag": "Communauté",
+      "title": "Stardew Valley fête ses 10 ans",
+      "date": "27 février 2026",
+      "text": "ConcernedApe revient sur dix ans de ferme à Pélican Ville : il craignait un échec à la sortie, le jeu est devenu un phénomène.",
+      "image": "art/stardew-valley/news/1.jpg"
+    },
+    {
+      "tag": "Communauté",
+      "title": "En finale du prix « Travail de passion » aux Steam Awards",
+      "date": "20 décembre 2024",
+      "text": "Nommé par les joueurs, Stardew Valley est en finale de la catégorie qui récompense les jeux toujours suivis des années après leur sortie.",
+      "image": "art/stardew-valley/news/3.jpg"
+    },
+    {
+      "tag": "Mise à jour",
+      "title": "Correctif 1.6.15 disponible",
+      "date": "20 décembre 2024",
+      "text": "Ce correctif règle quelques problèmes persistants, rééquilibre certains éléments et ajoute de petites nouveautés.",
+      "image": "art/stardew-valley/news/2.jpg"
+    }
+  ],
+  "lies-of-p": [
+    {
+      "tag": "Mise à jour",
+      "title": "Notes de version 1.14.0.0",
+      "date": "1er octobre 2026",
+      "text": "Nouvelle mise à jour de Lies of P, avec un rappel : les logiciels et données non officiels peuvent faire planter le jeu.",
+      "image": "art/lies-of-p/news/1.jpg"
+    },
+    {
+      "tag": "Mise à jour",
+      "title": "Version 1.13.1.0 : le jeu arrive sur Switch 2 et l'Epic Games Store",
+      "date": "5 août 2026",
+      "text": "Lies of P: Complete Edition sort sur Nintendo Switch 2 et sur l'Epic Games Store, accompagné d'une mise à jour.",
+      "image": "art/lies-of-p/news/2.jpg"
+    },
+    {
+      "tag": "Communauté",
+      "title": "Lies of P: Overture nommé aux Golden Joystick Awards",
+      "date": "3 octobre 2025",
+      "text": "L'extension Overture est en lice pour le prix de la meilleure extension de l'année.",
+      "image": "art/lies-of-p/news/3.jpg"
+    }
+  ],
+  "spider-man-2": [
+    {
+      "tag": "Mise à jour",
+      "title": "Correctif pour la version PC",
+      "date": "11 août 2026",
+      "text": "La version 2.810.0.0 améliore le costume Fresh Start suite aux retours des joueurs.",
+      "image": "art/spider-man-2/news/2.jpg"
+    },
+    {
+      "tag": "Mise à jour",
+      "title": "Deux nouveaux costumes pour Peter Parker",
+      "date": "28 juillet 2026",
+      "text": "Une nouvelle mise à jour ajoute deux costumes pour Peter Parker sur PC.",
+      "image": "art/spider-man-2/news/1.jpg"
+    },
+    {
+      "tag": "Mise à jour",
+      "title": "Meilleure prise en charge de la manette DualSense Edge",
+      "date": "8 juillet 2026",
+      "text": "Une petite mise à jour améliore la DualSense Edge et passe AMD FSR à une version plus récente.",
+      "image": "art/spider-man-2/news/3.jpg"
+    }
+  ],
+  "final-fantasy-vii-rebirth": [
+    {
+      "tag": "Annonce",
+      "title": "Final Fantasy VII Revelation en précommande",
+      "date": "4 septembre 2026",
+      "text": "Le dernier volet de la trilogie sort le 8 avril 2027 et peut déjà être précommandé.",
+      "image": "art/final-fantasy-vii-rebirth/news/3.jpg"
+    },
+    {
+      "tag": "Annonce",
+      "title": "Final Fantasy VII Revelation annoncé pour le printemps 2027",
+      "date": "25 juin 2026",
+      "text": "Cloud et ses compagnons font face à un monde au bord de l'anéantissement dans la conclusion de la trilogie.",
+      "image": "art/final-fantasy-vii-rebirth/news/2.jpg"
+    },
+    {
+      "tag": "Mise à jour",
+      "title": "Version 1.005 disponible",
+      "date": "3 juin 2026",
+      "text": "Arrivée d'une progression simplifiée et d'une option « Nouvelle partie avec avance » pour reprendre l'aventure plus vite.",
+      "image": "art/final-fantasy-vii-rebirth/news/1.jpg"
+    }
+  ],
+  "split-fiction": [
+    {
+      "tag": "Annonce",
+      "title": "La Hazelight Collection est disponible",
+      "date": "15 octobre 2026",
+      "text": "Split Fiction, It Takes Two et A Way Out réunis : trois aventures en coopération très différentes.",
+      "image": "art/split-fiction/news/1.jpg"
+    },
+    {
+      "tag": "Communauté",
+      "title": "Nommé dans la catégorie « Meilleur entre amis » des Steam Awards",
+      "date": "18 décembre 2025",
+      "text": "Split Fiction est en lice pour le prix du meilleur jeu à plusieurs. Le vote est ouvert.",
+      "image": "art/split-fiction/news/3.jpg"
+    },
+    {
+      "tag": "Annonce",
+      "title": "Les bandes originales de Split Fiction et It Takes Two sont sorties",
+      "date": "18 novembre 2025",
+      "text": "Les deux bandes originales sont disponibles sur Steam, pour retrouver l'histoire de Mio et Zoé.",
+      "image": "art/split-fiction/news/2.jpg"
+    }
+  ],
+  "doom-the-dark-ages": [
+    {
+      "tag": "Mise à jour",
+      "title": "Revelations : la mise à jour 4 et une nouvelle campagne",
+      "date": "7 juillet 2026",
+      "text": "L'enfer gèle : Revelations ajoute une toute nouvelle campagne et la mise à jour 4 du jeu.",
+      "image": "art/doom-the-dark-ages/news/1.jpg"
+    },
+    {
+      "tag": "Communauté",
+      "title": "Finaliste des Steam Awards",
+      "date": "18 décembre 2025",
+      "text": "Merci aux joueurs qui ont voté : DOOM: The Dark Ages est finaliste des Steam Awards.",
+      "image": "art/doom-the-dark-ages/news/3.jpg"
+    },
+    {
+      "tag": "Mise à jour",
+      "title": "Mise à jour 3 : le Ripatorium 2.0",
+      "date": "18 novembre 2025",
+      "text": "Plus de rencontres prédéfinies et des réglages plus fins pour l'arène d'entraînement du jeu.",
+      "image": "art/doom-the-dark-ages/news/2.jpg"
+    }
+  ],
+  "gta-5": [
+    {
+      "tag": "Événement",
+      "title": "Événement Braquages : le Kortz Center dans le viseur",
+      "date": "6 novembre 2026",
+      "text": "Cette semaine dans GTA Online, les braquages rapportent le double à la première réussite. Montez une équipe, préparez le coup et repartez sans encombre.",
+      "image": "art/gta-5/news/1.jpg"
+    },
+    {
+      "tag": "Événement",
+      "title": "Halloween s'installe à Los Santos tout le mois d'octobre",
+      "date": "5 octobre 2026",
+      "text": "Apparitions, visions paranormales et tueurs masqués : GTA Online fête Halloween pendant un mois entier.",
+      "image": "art/gta-5/news/2.jpg"
+    },
+    {
+      "tag": "Événement",
+      "title": "Rivalités d'affaires : bonus pour toutes les entreprises criminelles",
+      "date": "10 septembre 2026",
+      "text": "Tout le mois de septembre, PDG, bikers et trafiquants d'armes profitent de bonus pour faire tourner leurs affaires dans GTA Online.",
+      "image": "art/gta-5/news/3.jpg"
+    }
+  ],
+  "resident-evil-requiem": [
+    {
+      "tag": "Communauté",
+      "title": "Jeu de l'année aux Golden Joystick Awards 2026",
+      "date": "12 novembre 2026",
+      "text": "Resident Evil Requiem remporte le prix suprême du jeu de l'année, décerné par le vote du public.",
+      "image": "art/resident-evil-requiem/news/1.jpg"
+    },
+    {
+      "tag": "Mise à jour",
+      "title": "Mise à jour corrective",
+      "date": "25 juin 2026",
+      "text": "Corrections diverses et difficulté abaissée pour les deux premiers rangs du mini-jeu Leon Must Die Forever.",
+      "image": "art/resident-evil-requiem/news/3.jpg"
+    },
+    {
+      "tag": "Mise à jour",
+      "title": "Le mini-jeu Leon Must Die Forever est disponible",
+      "date": "8 mai 2026",
+      "text": "Une mise à jour gratuite ajoute des corrections et un mini-jeu d'action effréné, débloqué en terminant l'histoire.",
+      "image": "art/resident-evil-requiem/news/2.jpg"
+    }
+  ],
+  "silent-hill-townfall": [
+    {
+      "tag": "Mise à jour",
+      "title": "Mise à jour 1.6.0",
+      "date": "29 octobre 2026",
+      "text": "Des réglages du jeu et des corrections de problèmes rencontrés en partie.",
+      "image": "art/silent-hill-townfall/news/1.jpg"
+    },
+    {
+      "tag": "Mise à jour",
+      "title": "Correctif 1.3.1 : moins de saccades",
+      "date": "1er octobre 2026",
+      "text": "Ce correctif réduit les saccades pendant le jeu sur la version Steam.",
+      "image": "art/silent-hill-townfall/news/2.jpg"
+    },
+    {
+      "tag": "Annonce",
+      "title": "Silent Hill: Townfall est disponible",
+      "date": "24 septembre 2026",
+      "text": "De retour sur une île pour « tout arranger », Simon Ordell plonge dans un monde d'esquives tendues, d'affrontements et d'énigmes déroutantes.",
+      "image": "art/silent-hill-townfall/news/3.jpg"
+    }
+  ],
+  "phantom-blade-zero": [
+    {
+      "tag": "Mise à jour",
+      "title": "Notes de version 1.0302256",
+      "date": "4 novembre 2026",
+      "text": "Ce correctif ajoute des options de son et de commandes, dont le réglage de l'intensité des bruits d'impact, et améliore les performances, l'équilibrage des combats et plusieurs bugs.",
+      "image": "art/phantom-blade-zero/news/1.jpg"
+    },
+    {
+      "tag": "Communauté",
+      "title": "Raison et folie : la lettre du directeur créatif",
+      "date": "28 octobre 2026",
+      "text": "Le jour de la sortie, le directeur créatif raconte le chemin parcouru depuis Rainblood, le petit jeu qu'il avait créé il y a vingt ans pendant ses études.",
+      "image": "art/phantom-blade-zero/news/2.jpg"
+    },
+    {
+      "tag": "Annonce",
+      "title": "Préparez votre lame : le préchargement est ouvert",
+      "date": "26 octobre 2026",
+      "text": "Le jeu peut être préchargé avant sa sortie. S-GAME conseille de l'installer sur un SSD pour une expérience fluide.",
+      "image": "art/phantom-blade-zero/news/3.jpg"
+    }
+  ],
+  "the-last-of-us-1": [
+    {
+      "tag": "Communauté",
+      "title": "The Last of Us Day 2025",
+      "date": "26 septembre 2025",
+      "text": "Naughty Dog célèbre comme chaque année la série qui compte tant pour ses joueurs et pour ses équipes.",
+      "image": "art/the-last-of-us-1/news/1.jpg"
+    },
+    {
+      "tag": "Mise à jour",
+      "title": "Version 1.1.5",
+      "date": "3 juillet 2025",
+      "text": "Le jeu reprend des améliorations de stabilité de The Last of Us Part II Remastered sur PC et prend en charge la dernière version d'AMD FSR.",
+      "image": "art/the-last-of-us-1/news/2.jpg"
+    },
+    {
+      "tag": "Mise à jour",
+      "title": "Version 1.1.2",
+      "date": "23 août 2023",
+      "text": "Des corrections visuelles et d'interface. Le téléchargement de ce correctif relance la préparation complète des shaders au démarrage.",
+      "image": "art/the-last-of-us-1/news/3.jpg"
+    }
   ]
 };

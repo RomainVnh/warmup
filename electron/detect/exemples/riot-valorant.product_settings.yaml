@@ -1,0 +1,7 @@
+product_install_full_path: "{{DOSSIER}}"
+product_install_root: "C:/Riot Games"
+settings:
+  create_shortcut: true
+  create_uninstall_key: true
+  locale: "fr_FR"
+should_repair: false

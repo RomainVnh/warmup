@@ -103,7 +103,7 @@ export function Onboarding() {
       body = (
         <>
           {title('Vos jeux installés')}
-          <p className="ob-lead">Warmup lit la liste tenue par Steam, Epic Games et GOG. Aucun jeu n'est ouvert et aucun compte n'est consulté.</p>
+          <p className="ob-lead">Warmup lit la liste tenue par Steam, Epic Games, GOG, Battle.net, Rockstar et Riot. Aucun jeu n'est ouvert et aucun compte n'est consulté.</p>
           <GamesStep report={detection} onReport={setDetection} />
         </>
       );
@@ -189,7 +189,7 @@ export function Onboarding() {
 // Connexion sans mot de passe : un lien est envoyé à l'adresse indiquée.
 // Le compte est obligatoire : sans lui, on ne peut pas aller plus loin.
 function AccountStep() {
-  const { data, account, updateAccount, profileCard, updateProfileCard } = useApp();
+  const { data, account, updateAccount, profileCard, updateProfileCard, online } = useApp();
   const [mode, setMode] = useState<AccountMode>(account.onboarded ? 'signin' : 'create');
   const [mail, setMail] = useState(account.email);
   const [sent, setSent] = useState(false);
@@ -223,6 +223,10 @@ function AccountStep() {
     }
     if (!isEmail(value)) {
       setError('Cette adresse ne semble pas complète. Exemple : prenom@exemple.fr');
+      return;
+    }
+    if (!online) {
+      setError('Pas de connexion internet : le lien de connexion ne peut pas être envoyé pour l\'instant. Vérifiez le Wi-Fi ou le câble, puis réessayez.');
       return;
     }
     setError('');

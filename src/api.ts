@@ -1,14 +1,25 @@
 import { snapshot } from '../shared/mock-data';
 import { simulateLaunch } from '../shared/launch-sim';
-import { cleanAccount, cleanCollections, cleanProfileCard, defaultAccount, defaultProfileCard, defaultSettings, settingKeys, type Account, type Collection, type DetectionReport, type NominalApi, type ProfileCard, type Settings } from '../shared/types';
+import { cleanAllGameOptions, cleanGameOptions, defaultGameOptions, cleanAccount, cleanCollections, cleanProfileCard, defaultAccount, defaultProfileCard, defaultSettings, settingKeys, type Account, type Collection, type DetectionReport, type GameActionResult, type GameOptions, type WarmupApi, type ProfileCard, type Settings } from '../shared/types';
 
 declare global {
   interface Window {
-    nominal?: NominalApi;
+    warmup?: WarmupApi;
   }
 }
 
-const KEY = 'nominal.settings';
+// Ancien nom du projet : les données enregistrées sous « nominal.* » sont reprises une seule fois.
+try {
+  for (const name of ['settings', 'profile', 'collections', 'account']) {
+    const old = localStorage.getItem(`nominal.${name}`);
+    if (old !== null && localStorage.getItem(`warmup.${name}`) === null) localStorage.setItem(`warmup.${name}`, old);
+    localStorage.removeItem(`nominal.${name}`);
+  }
+} catch {
+  // Stockage indisponible : rien à reprendre.
+}
+
+const KEY = 'warmup.settings';
 
 function loadSettings(): Settings {
   const next = { ...defaultSettings };
@@ -21,7 +32,7 @@ function loadSettings(): Settings {
   return next;
 }
 
-const PROFILE_KEY = 'nominal.profile';
+const PROFILE_KEY = 'warmup.profile';
 
 function loadProfileCard(): ProfileCard {
   try {
@@ -31,7 +42,7 @@ function loadProfileCard(): ProfileCard {
   }
 }
 
-const COLLECTIONS_KEY = 'nominal.collections';
+const COLLECTIONS_KEY = 'warmup.collections';
 
 function loadCollections(): Collection[] {
   try {
@@ -42,7 +53,7 @@ function loadCollections(): Collection[] {
   }
 }
 
-const ACCOUNT_KEY = 'nominal.account';
+const ACCOUNT_KEY = 'warmup.account';
 
 function loadAccount(): Account {
   try {
@@ -52,28 +63,57 @@ function loadAccount(): Account {
   }
 }
 
+const GAME_OPTIONS_KEY = 'warmup.gameOptions';
+
+function loadGameOptions(): Record<string, GameOptions> {
+  try {
+    return cleanAllGameOptions(JSON.parse(localStorage.getItem(GAME_OPTIONS_KEY) ?? '{}'));
+  } catch {
+    return {};
+  }
+}
+
+// Dans le navigateur, rien n'est modifié sur le PC : chaque action le dit.
+const simulated = (message: string): Promise<GameActionResult> => Promise.resolve({ ok: true, simulated: true, message });
+
 // Dans le navigateur, rien ne peut être lu sur le PC : on montre un exemple de résultat.
 const exampleDetection: DetectionReport = {
   example: true,
   stores: [
     { source: 'Steam', found: true, note: '4 jeux installés.' },
     { source: 'Epic', found: true, note: '1 jeu installé.' },
-    { source: 'GOG', found: true, note: '2 jeux installés.' }
+    { source: 'GOG', found: true, note: '2 jeux installés.' },
+    { source: 'Battle.net', found: true, note: '2 jeux installés.' },
+    { source: 'Rockstar', found: true, note: '1 jeu installé.' },
+    { source: 'Riot', found: true, note: '1 jeu installé.' }
   ],
   games: [
-    { source: 'Steam', storeId: '1086940', title: 'Baldur\'s Gate 3', folder: 'D:\\SteamLibrary\\steamapps\\common\\Baldurs Gate 3', sizeGb: 139.6, complete: true, libraryId: 'baldurs-gate-3' },
-    { source: 'Steam', storeId: '730', title: 'Counter-Strike 2', folder: 'C:\\Program Files (x86)\\Steam\\steamapps\\common\\Counter-Strike Global Offensive', sizeGb: 34.2, complete: true, libraryId: 'counter-strike-2' },
-    { source: 'GOG', storeId: '1423049311', title: 'Cyberpunk 2077', folder: 'D:\\GOG Games\\Cyberpunk 2077', sizeGb: null, complete: true, libraryId: 'cyberpunk-2077' },
-    { source: 'Steam', storeId: '1245620', title: 'ELDEN RING', folder: 'D:\\SteamLibrary\\steamapps\\common\\ELDEN RING', sizeGb: 68.9, complete: true, libraryId: 'elden-ring' },
-    { source: 'Epic', storeId: 'Sugar', title: 'Rocket League', folder: 'D:\\Epic Games\\rocketleague', sizeGb: 27.4, complete: true, libraryId: null },
-    { source: 'Steam', storeId: '2246340', title: 'Monster Hunter Wilds', folder: 'D:\\SteamLibrary\\steamapps\\common\\MonsterHunterWilds', sizeGb: 51.3, complete: false, libraryId: 'monster-hunter-wilds' },
-    { source: 'GOG', storeId: '1207664663', title: 'The Witcher 3: Wild Hunt', folder: 'D:\\GOG Games\\The Witcher 3 Wild Hunt GOTY', sizeGb: null, complete: true, libraryId: 'the-witcher-3' }
+    { source: 'Steam', storeId: '1086940', title: 'Baldur\'s Gate 3', folder: 'D:\\SteamLibrary\\steamapps\\common\\Baldurs Gate 3', sizeGb: 139.6, complete: true, libraryId: 'baldurs-gate-3', canLaunch: true },
+    { source: 'Battle.net', storeId: 'auks', title: 'Call of Duty', folder: 'D:\\Jeux\\Call of Duty', sizeGb: 212.4, complete: true, libraryId: 'call-of-duty-mw4', canLaunch: true },
+    { source: 'Steam', storeId: '730', title: 'Counter-Strike 2', folder: 'C:\\Program Files (x86)\\Steam\\steamapps\\common\\Counter-Strike Global Offensive', sizeGb: 34.2, complete: true, libraryId: 'counter-strike-2', canLaunch: true },
+    { source: 'GOG', storeId: '1423049311', title: 'Cyberpunk 2077', folder: 'D:\\GOG Games\\Cyberpunk 2077', sizeGb: null, complete: true, libraryId: 'cyberpunk-2077', canLaunch: true },
+    { source: 'Battle.net', storeId: 'fenris', title: 'Diablo IV', folder: 'D:\\Jeux\\Diablo IV', sizeGb: 88.1, complete: true, libraryId: 'diablo-4', canLaunch: true },
+    { source: 'Steam', storeId: '1245620', title: 'ELDEN RING', folder: 'D:\\SteamLibrary\\steamapps\\common\\ELDEN RING', sizeGb: 68.9, complete: true, libraryId: 'elden-ring', canLaunch: true },
+    { source: 'Rockstar', storeId: 'rdr2', title: 'Red Dead Redemption 2', folder: 'D:\\Rockstar Games\\Red Dead Redemption 2', sizeGb: 121.3, complete: true, libraryId: 'red-dead-redemption-2', canLaunch: true },
+    { source: 'Epic', storeId: 'Sugar', title: 'Rocket League', folder: 'D:\\Epic Games\\rocketleague', sizeGb: 27.4, complete: true, libraryId: null, canLaunch: true },
+    { source: 'Steam', storeId: '2246340', title: 'Monster Hunter Wilds', folder: 'D:\\SteamLibrary\\steamapps\\common\\MonsterHunterWilds', sizeGb: 51.3, complete: false, libraryId: 'monster-hunter-wilds', canLaunch: false },
+    { source: 'GOG', storeId: '1207664663', title: 'The Witcher 3: Wild Hunt', folder: 'D:\\GOG Games\\The Witcher 3 Wild Hunt GOTY', sizeGb: null, complete: true, libraryId: 'the-witcher-3', canLaunch: true },
+    { source: 'Riot', storeId: 'valorant.live', title: 'VALORANT', folder: 'C:\\Riot Games\\VALORANT', sizeGb: null, complete: true, libraryId: 'valorant', canLaunch: true }
   ]
 };
 
+// Modes de démonstration, dans le navigateur seulement : ?demo=vide (aucun jeu) ou ?demo=hors-ligne (pas de connexion).
+export const demo = ((): string => {
+  try {
+    return new URLSearchParams(window.location.search).get('demo') ?? '';
+  } catch {
+    return '';
+  }
+})();
+
 // Version « navigateur » : sert à travailler l'interface sans Electron (npm run dev).
-const webApi: NominalApi = {
-  getSnapshot: async () => snapshot,
+const webApi: WarmupApi = {
+  getSnapshot: async () => (demo === 'vide' ? { ...snapshot, games: [], downloads: { ...snapshot.downloads, items: [] }, notices: snapshot.notices.filter((n) => !n.gameId), reports: [], mods: [] } : snapshot),
   getSettings: async () => loadSettings(),
   setSettings: async (patch) => {
     const next = { ...loadSettings(), ...patch };
@@ -114,12 +154,37 @@ const webApi: NominalApi = {
     }
     return next;
   },
+  getGameOptions: async () => loadGameOptions(),
+  setGameOptions: async (gameId, patch) => {
+    const all = loadGameOptions();
+    const next = cleanAllGameOptions({ ...all, [gameId]: cleanGameOptions(patch, all[gameId] ?? defaultGameOptions) });
+    try {
+      localStorage.setItem(GAME_OPTIONS_KEY, JSON.stringify(next));
+    } catch {
+      // Les options valent au moins pour cette session.
+    }
+    return next;
+  },
+  getGameFiles: async (gameId) => {
+    const game = snapshot.games.find((g) => g.id === gameId);
+    const source = game && ['Steam', 'Epic', 'GOG', 'Battle.net', 'Rockstar', 'Riot'].includes(game.source) ? (game.source as 'Steam') : null;
+    return { found: Boolean(game), example: true, folder: game?.location ?? '', sizeGb: game?.sizeGb ?? null, source, canUninstall: Boolean(game), canVerify: source === 'Steam' };
+  },
+  openGameFolder: () => simulated('Exemple : dans l\'application installée, le dossier du jeu s\'ouvre dans l\'explorateur.'),
+  verifyGameFiles: () => simulated('Exemple : dans l\'application installée, Steam vérifie les fichiers et répare ceux qui manquent.'),
+  uninstallGame: (gameId) => simulated(`${snapshot.games.find((g) => g.id === gameId)?.title ?? 'Le jeu'} est désinstallé (exemple : rien n'a été supprimé sur ce PC).`),
+  getPcReport: async () => ({ example: true, checkedAt: 'Contrôlé il y a 2 minutes', parts: snapshot.pc.parts, issues: snapshot.pc.issues }),
   detectGames: async () => exampleDetection,
   startLaunch(gameId, onEvent) {
     const game = snapshot.games.find((g) => g.id === gameId);
     if (!game) return () => undefined;
+    // Contrôles désactivés pour ce jeu : il « s'ouvre » tout de suite.
+    if (!(loadGameOptions()[gameId] ?? defaultGameOptions).checks) {
+      const timer = setTimeout(() => onEvent({ type: 'started', real: false }), 300);
+      return () => clearTimeout(timer);
+    }
     return simulateLaunch(game.launch.steps.length, onEvent);
   }
 };
 
-export const api: NominalApi = window.nominal ?? webApi;
+export const api: WarmupApi = window.warmup ?? webApi;

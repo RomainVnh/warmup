@@ -1,10 +1,30 @@
 import { useState } from 'react';
+import type { PcPart } from '../../shared/types';
+import { api } from '../api';
 import { useApp } from '../context';
 import { Ambient, Icon, Ring, Stat, StatusText } from '../ui';
 
 export function Diagnostic() {
   const { data, notify } = useApp();
-  const { parts, servers } = data.pc;
+  const { servers } = data.pc;
+  const [parts, setParts] = useState<PcPart[]>(data.pc.parts);
+  const [checkedAt, setCheckedAt] = useState('Contrôlé à l\'ouverture de Warmup');
+  const [checking, setChecking] = useState(false);
+
+  // Relit le matériel. Dans le navigateur, la réponse reste l'exemple et le dit.
+  const recheck = async () => {
+    setChecking(true);
+    try {
+      const report = await api.getPcReport();
+      setParts(report.parts);
+      setCheckedAt(report.checkedAt);
+      notify(report.example ? 'Exemple de diagnostic : la vraie lecture du PC se fait dans l\'application installée.' : 'Diagnostic relancé : le matériel a été relu.');
+    } catch {
+      notify('Le diagnostic n\'a pas pu relire le PC. Réessayez dans un instant.');
+    } finally {
+      setChecking(false);
+    }
+  };
   const [issues, setIssues] = useState(data.pc.issues);
   const [log, setLog] = useState(data.pc.log);
   const good = parts.filter((p) => p.status === 'ok').length;
@@ -20,12 +40,12 @@ export function Diagnostic() {
             <span>au vert</span>
           </Ring>
           <div>
-            <span className="eyebrow">Contrôlé il y a 2 minutes</span>
+            <span className="eyebrow">{checkedAt}</span>
             <h1 className="title">Diagnostic du PC</h1>
             <p className="sub">{allGood ? 'Tout est en ordre.' : `${parts.length - good} points peuvent être améliorés. Rien n'empêche de jouer.`}</p>
           </div>
         </div>
-        <button type="button" className="btn btn-primary" onClick={() => notify('Diagnostic relancé : aucun changement depuis le dernier contrôle.')}>Relancer le diagnostic</button>
+        <button type="button" className="btn btn-primary" onClick={recheck} disabled={checking}>{checking ? 'Lecture du PC…' : 'Relancer le diagnostic'}</button>
       </div>
 
       <section>

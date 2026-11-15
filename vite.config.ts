@@ -6,7 +6,7 @@ import react from '@vitejs/plugin-react';
 // La règle de sécurité du contenu n'est ajoutée qu'à la version finale :
 // en développement, le rechargement à chaud de React a besoin de scripts en ligne.
 const csp = (): Plugin => ({
-  name: 'nominal-csp',
+  name: 'warmup-csp',
   apply: 'build',
   transformIndexHtml(html) {
     const rule = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'";

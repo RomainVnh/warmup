@@ -7,7 +7,10 @@ import path from 'node:path';
 export const REGISTRY_KEYS = {
   steamUser: 'HKCU\\Software\\Valve\\Steam',
   steamMachine: 'HKLM\\SOFTWARE\\WOW6432Node\\Valve\\Steam',
-  gogGames: 'HKLM\\SOFTWARE\\WOW6432Node\\GOG.com\\Games'
+  gogGames: 'HKLM\\SOFTWARE\\WOW6432Node\\GOG.com\\Games',
+  // Liste des programmes installés : Battle.net et Rockstar y inscrivent leurs jeux.
+  uninstall32: 'HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall',
+  uninstall64: 'HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall'
 } as const;
 
 export type RegistryKey = (typeof REGISTRY_KEYS)[keyof typeof REGISTRY_KEYS];
@@ -18,7 +21,7 @@ export function queryRegistry(key: RegistryKey): Promise<string> {
   if (process.platform !== 'win32' || !Object.values(REGISTRY_KEYS).includes(key)) return Promise.resolve('');
   const reg = path.join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'reg.exe');
   return new Promise((resolve) => {
-    execFile(reg, ['query', key, '/s'], { timeout: 5000, windowsHide: true, maxBuffer: 4 * 1024 * 1024 }, (error, stdout) => {
+    execFile(reg, ['query', key, '/s'], { timeout: 5000, windowsHide: true, maxBuffer: 16 * 1024 * 1024 }, (error, stdout) => {
       resolve(error ? '' : stdout);
     });
   });

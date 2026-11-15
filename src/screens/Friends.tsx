@@ -8,7 +8,7 @@ type Filter = 'all' | 'playing' | 'joinable';
 const friendHref = (name: string) => `#/friends/${encodeURIComponent(name)}`;
 
 export function Friends({ selected }: { selected: string }) {
-  const { data, play, installed, install, notify } = useApp();
+  const { data, play, installed, install, notify, online: connected } = useApp();
   const [filter, setFilter] = useState<Filter>('all');
   const online = data.friends.filter((f) => f.online);
   const offline = data.friends.filter((f) => !f.online);
@@ -56,6 +56,8 @@ export function Friends({ selected }: { selected: string }) {
         <button type="button" className="btn" onClick={() => notify('L\'ajout d\'amis arrivera avec les connexions aux plateformes.')}><Icon name="plus" size={14} />Ajouter un ami</button>
       </div>
 
+      {!connected && <p className="status status-warn fr-offline" role="status"><Icon name="offline" size={13} stroke={2.2} />Hors connexion : la liste date de votre dernière connexion. Rejoindre et écrire reprendront au retour du réseau.</p>}
+
       <div className="fr-layout">
         <nav className="fr-list" aria-label="Liste des amis">
           <Segmented<Filter>
@@ -85,7 +87,7 @@ export function Friends({ selected }: { selected: string }) {
 }
 
 function FriendProfile({ friend, onJoin }: { friend: FriendStatus; onJoin(friend: FriendStatus): void }) {
-  const { data, installed, notify } = useApp();
+  const { data, installed, notify, online: connected } = useApp();
   const current = friend.gameId ? findGame(data, friend.gameId) : undefined;
   const games = friend.games
     .map((g) => ({ game: findGame(data, g.gameId), hours: g.hours }))
@@ -132,7 +134,7 @@ function FriendProfile({ friend, onJoin }: { friend: FriendStatus; onJoin(friend
         </div>
         <div className="row">
           {friend.online && current && friend.joinable && (
-            <button type="button" className="btn btn-primary" onClick={() => onJoin(friend)}>
+            <button type="button" className="btn btn-primary" onClick={() => onJoin(friend)} disabled={!connected} title={connected ? undefined : 'Disponible au retour de la connexion'}>
               <Icon name="play" size={13} filled />
               {installed.has(current.id) ? 'Rejoindre' : 'Installer pour rejoindre'}
             </button>

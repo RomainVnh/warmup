@@ -1,6 +1,6 @@
 # Warmup : règles du projet
 
-Lanceur de jeux PC (Electron, React, TypeScript). Promesse : chaque jeu démarre dans de bonnes conditions ; en cas de problème, l'appli sait pourquoi, l'explique simplement et le répare. L'application s'appelle Warmup (ancien nom : Nominal ; le dossier, `NominalApi` et `window.nominal` gardent l'ancien nom dans le code).
+Lanceur de jeux PC (Electron, React, TypeScript). Promesse : chaque jeu démarre dans de bonnes conditions ; en cas de problème, l'appli sait pourquoi, l'explique simplement et le répare. L'application s'appelle Warmup (ancien nom : Nominal, que seul le nom du dossier garde encore).
 
 ## Commandes
 
@@ -16,11 +16,15 @@ Lanceur de jeux PC (Electron, React, TypeScript). Promesse : chaque jeu démarre
 
 - `src/` est l'interface. Elle ne lit ni n'écrit jamais rien sur le PC et n'importe jamais `electron`, `fs` ou `child_process`.
 - `electron/main.ts` est la seule partie qui touche au système. `electron/preload.ts` expose à l'interface une liste fermée d'actions.
-- Toute nouvelle action suit quatre étapes : l'ajouter à `NominalApi` dans `shared/types.ts`, l'exposer dans `electron/preload.ts`, la traiter dans `electron/main.ts` en vérifiant chaque paramètre reçu, puis ajouter sa version factice dans `src/api.ts`.
-- Pour ajouter un jeu aux données d'exemple, suivre `AJOUTER-UN-JEU.txt` (script d'aide : `outils/ajouter-jeu-steam.py`).
+- Toute nouvelle action suit quatre étapes : l'ajouter à `WarmupApi` dans `shared/types.ts`, l'exposer dans `electron/preload.ts`, la traiter dans `electron/main.ts` en vérifiant chaque paramètre reçu, puis ajouter sa version factice dans `src/api.ts`.
+- Pour ajouter un jeu aux données d'exemple, suivre `AJOUTER-UN-JEU.txt` (script d'aide : `outils/ajouter-jeu-steam.py`), puis ajouter sa ligne dans `SOURCES.md`, qui recense l'origine de chaque visuel, succès et actualité.
 - La personnalisation du profil (pseudo, phrase, bannière, vitrine) passe par `getProfileCard` / `setProfileCard` ; chaque valeur reçue est nettoyée par `cleanProfileCard` (`shared/types.ts`).
 - Les collections passent par `getCollections` / `setCollections`, nettoyées par `cleanCollections`.
-- La détection des jeux installés (`electron/detect/`) lit, sans rien modifier, les fichiers de Steam et d'Epic et le registre pour GOG (clés fixes de `registry.ts`, outil `reg` de Windows). L'action `detectGames` ne reçoit aucun paramètre ; son résultat s'affiche dans Réglages et ne remplace pas encore la bibliothèque d'exemple.
+- La détection des jeux installés (`electron/detect/`) lit, sans rien modifier, les fichiers de Steam, d'Epic et de Riot, et le registre pour GOG, Battle.net et Rockstar (clés fixes de `registry.ts`, outil `reg` de Windows). L'action `detectGames` ne reçoit aucun paramètre ; son résultat s'affiche dans Réglages et ne remplace pas encore la bibliothèque d'exemple.
+- Lancement réel (`electron/launch.ts`) : la détection construit pour chaque jeu un plan de lancement (adresse `steam://` ou `com.epicgames.launcher://`, ou programme de la plateforme avec arguments fixes). Ce plan reste dans `electron/` : l'interface n'envoie que l'identifiant du jeu. Sans plan, le lancement reste simulé.
+- Paramètres d'un jeu (`src/GameSettings.tsx`, bouton « Paramètres » de la fiche) : fenêtre de lancement (réglages, toujours, jamais), contrôles avant lancement, arguments de lancement (`getGameOptions` / `setGameOptions`, nettoyés par `cleanGameOptions` ; seuls lettres, chiffres et `- _ = . : + , /`, jamais de shell), emplacement, vérification des fichiers et désinstallation (`getGameFiles`, `openGameFolder`, `verifyGameFiles`, `uninstallGame`). La désinstallation ouvre toujours le programme officiel de la plateforme, construit par la détection ; l'interface n'envoie que l'identifiant du jeu.
+- Matériel (`electron/hardware.ts`, action `getPcReport`) : écran, carte graphique, processeur, mémoire, disque et système, lus en lecture seule. Il remplace l'analyse d'exemple dans l'application ; le navigateur garde l'exemple.
+- États vides et erreurs : composant `EmptyState` (`src/ui.tsx`), bandeau hors connexion (`online` dans le contexte), téléchargements « failed » avec la raison et « Réessayer ». Dans le navigateur, `?demo=vide` (aucun jeu) et `?demo=hors-ligne` permettent de les voir.
 - Le compte et le premier lancement passent par `getAccount` / `setAccount`, nettoyés par `cleanAccount`. Le parcours (`src/Onboarding.tsx`) remplace l'application tant que `onboarded` est faux : bienvenue, compte, PC, jeux installés, plateformes, préférences, résumé. Le compte est obligatoire : l'application ne s'ouvre pas sans connexion, et « Se déconnecter » (profil, réglages) ramène à l'étape Compte seule. Les autres étapes peuvent être passées et se retrouvent dans Réglages. Connexion à Warmup par lien e-mail, sans mot de passe ; plateformes reliées par leur page officielle (simulé pour l'instant).
 - Pages : accueil, bibliothèque, fiche de jeu, téléchargements, amis, mods (par jeu), bilans (liste et détail), guides, diagnostic, assistant, réglages, profil. Barre du haut : recherche globale (`src/Search.tsx`) et cloche de notifications (`src/Notifications.tsx`).
 - Un jeu possédé peut ne pas être installé : le bouton principal devient « Installer ». L'avancement des téléchargements est simulé dans `src/App.tsx` en attendant la version Windows.
@@ -49,4 +53,4 @@ Lanceur de jeux PC (Electron, React, TypeScript). Promesse : chaque jeu démarre
 
 ## État actuel
 
-Interface complète et lancement simulé. La détection des jeux est écrite et testée sur des fichiers d'exemple, à vérifier sur un vrai PC. Reste à faire sous Windows : vrais contrôles, mods, connexions aux plateformes, assistant.
+Interface complète. Détection des jeux (six plateformes), lecture du matériel et lancement réel écrits et testés sur des fichiers d'exemple, à vérifier sur un vrai PC. Les contrôles avant lancement restent simulés. Reste à faire : vrais contrôles et corrections, mods, connexions aux plateformes, serveur (compte, assistant).

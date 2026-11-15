@@ -17,7 +17,7 @@ export function simulateLaunch(
     if (index >= stepCount) {
       clearInterval(timer);
       emit({ type: 'done' });
-      hold = setTimeout(() => emit({ type: 'started' }), holdMs);
+      hold = setTimeout(() => emit({ type: 'started', real: false }), holdMs);
     }
   }, stepMs);
   return () => {

@@ -2,7 +2,7 @@ HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\GOG.com\Games
 
 HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\GOG.com\Games\1207664663
     dependsOn    REG_SZ    
-    exe    REG_SZ    {{DOSSIER-WITCHER}}\bin\x64\witcher3.exe
+    exe    REG_SZ    {{EXE-WITCHER}}
     gameID    REG_SZ    1207664663
     gameName    REG_SZ    The Witcher 3: Wild Hunt
     path    REG_SZ    {{DOSSIER-WITCHER}}

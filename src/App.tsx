@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { cleanAccount, cleanCollections, cleanProfileCard, defaultProfileCard, defaultSettings, type Account, type Collection, type Download, type Game, type Notice, type ProfileCard, type Settings, type Snapshot } from '../shared/types';
-import { api } from './api';
+import { cleanAllGameOptions, cleanGameOptions, defaultGameOptions, cleanAccount, cleanCollections, cleanProfileCard, defaultProfileCard, defaultSettings, type Account, type Collection, type GameOptions, type Download, type Game, type Notice, type ProfileCard, type Settings, type Snapshot } from '../shared/types';
+import { api, demo } from './api';
 import { AppContext, type AppState } from './context';
 import { LaunchOverlay, type LaunchState } from './LaunchOverlay';
 import { GameArt, Icon, Logo, UserAvatar, type IconName } from './ui';
@@ -57,6 +57,8 @@ export function App() {
   const [collections, setCollections] = useState<Collection[]>([]);
   const [notices, setNotices] = useState<Notice[]>([]);
   const [account, setAccount] = useState<Account | null>(null);
+  const [gameOptions, setGameOptions] = useState<Record<string, GameOptions>>({});
+  const [online, setOnline] = useState(() => demo !== 'hors-ligne' && navigator.onLine);
   const cancelLaunch = useRef<(() => void) | null>(null);
   const mainRef = useRef<HTMLElement>(null);
 
@@ -67,8 +69,9 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    void api.getSnapshot().then((snap) => {
-      setData(snap);
+    // Le matériel lu sur le PC remplace l'analyse d'exemple ; dans le navigateur, l'exemple reste.
+    void Promise.all([api.getSnapshot(), api.getPcReport().catch(() => null)]).then(([snap, pc]) => {
+      setData(pc && !pc.example ? { ...snap, pc: { ...snap.pc, parts: pc.parts, issues: pc.issues } } : snap);
       setFavorites(new Set(snap.games.filter((g) => g.favorite).map((g) => g.id)));
       setInstalled(new Set(snap.games.filter((g) => g.installed).map((g) => g.id)));
       setDownloads(snap.downloads.items);
@@ -78,7 +81,20 @@ export function App() {
     void api.getProfileCard().then(setProfileCard);
     void api.getCollections().then(setCollections);
     void api.getAccount().then(setAccount);
+    void api.getGameOptions().then(setGameOptions).catch(() => undefined);
     return () => cancelLaunch.current?.();
+  }, []);
+
+  // Connexion internet : suivie en direct. Sans elle, les jeux installés se lancent toujours.
+  useEffect(() => {
+    if (demo === 'hors-ligne') return;
+    const update = () => setOnline(navigator.onLine);
+    window.addEventListener('online', update);
+    window.addEventListener('offline', update);
+    return () => {
+      window.removeEventListener('online', update);
+      window.removeEventListener('offline', update);
+    };
   }, []);
 
   // Chaque changement d'écran repart du haut de la page.
@@ -114,13 +130,38 @@ export function App() {
     void api.setCollections(next).then(setCollections);
   }, []);
 
+  const updateGameOptions = useCallback((gameId: string, patch: Partial<GameOptions>) => {
+    setGameOptions((all) => cleanAllGameOptions({ ...all, [gameId]: cleanGameOptions(patch, all[gameId] ?? defaultGameOptions) }));
+    void api.setGameOptions(gameId, patch).then(setGameOptions);
+  }, []);
+
+  // Désinstallation : par le programme officiel de la plateforme. Dans le navigateur, elle est simulée et le jeu redevient « à installer ».
+  const uninstall = useCallback(async (game: Game) => {
+    try {
+      const result = await api.uninstallGame(game.id);
+      if (result.ok && result.simulated) {
+        setInstalled((current) => {
+          const next = new Set(current);
+          next.delete(game.id);
+          return next;
+        });
+        setDownloads((list) => list.filter((d) => d.gameId !== game.id || d.state === 'done'));
+        setNotices((list) => [{ id: `desinstalle-${game.id}-${Date.now()}`, kind: 'update', title: `${game.title} est désinstallé`, text: `${game.sizeGb} Go libérés. Vous pouvez le réinstaller à tout moment depuis sa fiche.`, when: 'À l\'instant', href: `#/game/${game.id}`, unread: true, gameId: game.id }, ...list]);
+      }
+      return result.message;
+    } catch {
+      return 'La désinstallation n\'a pas pu démarrer. Réessayez dans un instant.';
+    }
+  }, []);
+
   const markNoticesRead = useCallback(() => setNotices((list) => list.map((n) => ({ ...n, unread: false }))), []);
 
   // Téléchargements simulés : un seul avance à la fois, à la vitesse d'exemple ; le suivant de la file prend le relais.
   const speed = data?.downloads.speedMbPerSec ?? 0;
   const busy = downloads.some((d) => d.state === 'active' || d.state === 'queued');
+  // Sans connexion, la file attend : rien n'est perdu, tout reprend au retour du réseau.
   useEffect(() => {
-    if (!busy || !speed) return;
+    if (!busy || !speed || !online) return;
     const timer = setInterval(() => {
       setDownloads((list) => {
         const index = list.findIndex((d) => d.state === 'active');
@@ -135,7 +176,7 @@ export function App() {
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [busy, speed]);
+  }, [busy, speed, online]);
 
   // Une installation terminée rend le jeu jouable.
   useEffect(() => {
@@ -149,14 +190,37 @@ export function App() {
     }
   }, [downloads, installed, data]);
 
+  const diskFree = data?.downloads.diskFreeGb ?? 0;
   const install = useCallback((game: Game) => {
+    const existing = downloads.find((d) => d.gameId === game.id && d.kind === 'install' && d.state !== 'done');
+    if (existing) {
+      setToast({ text: `${game.title} est déjà dans les téléchargements.`, link: { label: 'Voir la file', href: '#/downloads' } });
+      return;
+    }
+    // Place nécessaire : celle du jeu, en plus de ce qui reste à télécharger dans la file.
+    const pending = downloads.filter((d) => d.state !== 'done' && d.state !== 'failed').reduce((sum, d) => sum + (d.sizeGb - d.doneGb), 0);
+    const missing = Math.ceil(game.sizeGb - (diskFree - pending));
+    const job: Download = { id: `installation-${game.id}`, gameId: game.id, kind: 'install', label: 'Installation', sizeGb: game.sizeGb, doneGb: 0, state: downloads.some((d) => d.state === 'active') ? 'queued' : 'active', when: '' };
+    if (missing > 0) {
+      const error = `Il manque ${missing} Go sur le disque. Libérez de la place, puis réessayez.`;
+      setDownloads((list) => [...list, { ...job, state: 'failed', when: 'À l\'instant', error }]);
+      setToast({ text: `${game.title} ne peut pas être installé : il manque ${missing} Go sur le disque.`, link: { label: 'Voir les téléchargements', href: '#/downloads' } });
+      return;
+    }
+    setDownloads((list) => [...list, job]);
+    setToast({ text: online ? `${game.title} est ajouté aux téléchargements.` : `${game.title} est ajouté aux téléchargements. Il commencera au retour de la connexion.`, link: { label: 'Voir la file', href: '#/downloads' } });
+  }, [downloads, diskFree, online]);
+
+  const retryDownload = useCallback((id: string) => {
     setDownloads((list) => {
-      if (list.some((d) => d.gameId === game.id && d.kind === 'install' && d.state !== 'done')) return list;
-      const waiting = list.some((d) => d.state === 'active');
-      return [...list, { id: `installation-${game.id}`, gameId: game.id, kind: 'install', label: 'Installation', sizeGb: game.sizeGb, doneGb: 0, state: waiting ? 'queued' : 'active', when: '' }];
+      const job = list.find((d) => d.id === id);
+      if (!job || job.state !== 'failed') return list;
+      const pending = list.filter((d) => d.id !== id && d.state !== 'done' && d.state !== 'failed').reduce((sum, d) => sum + (d.sizeGb - d.doneGb), 0);
+      const missing = Math.ceil(job.sizeGb - job.doneGb - (diskFree - pending));
+      if (missing > 0) return list.map((d) => (d.id === id ? { ...d, when: 'À l\'instant', error: `Il manque toujours ${missing} Go sur le disque. Libérez de la place, puis réessayez.` } : d));
+      return list.map((d) => (d.id === id ? { ...d, state: list.some((x) => x.state === 'active') ? 'queued' : 'active', error: undefined, when: '' } : d));
     });
-    setToast({ text: `${game.title} est ajouté aux téléchargements.`, link: { label: 'Voir la file', href: '#/downloads' } });
-  }, []);
+  }, [diskFree]);
 
   const setDownloadPaused = useCallback((id: string, paused: boolean) => {
     setDownloads((list) => list.map((d) => (d.id === id && d.state !== 'done' ? { ...d, state: paused ? 'paused' : 'queued' } : d)));
@@ -168,8 +232,20 @@ export function App() {
     (game: Game) => {
       cancelLaunch.current?.();
       setToast(null);
-      setLaunch({ game, step: 0, phase: 'run', silent: !settings.launchWindow });
+      const choice = (gameOptions[game.id] ?? defaultGameOptions).launchWindow;
+      setLaunch({ game, step: 0, phase: 'run', silent: choice === 'never' || (choice === 'default' && !settings.launchWindow) });
       cancelLaunch.current = api.startLaunch(game.id, (event) => {
+        // Jeu réellement ouvert : la fenêtre de contrôle se retire, Warmup reste en dehors du jeu.
+        if (event.type === 'started' && event.real) {
+          setLaunch(null);
+          setToast({ text: `${game.title} est lancé. Warmup reste en dehors du jeu et prépare le bilan de la partie.` });
+          return;
+        }
+        if (event.type === 'failed') {
+          setLaunch(null);
+          setToast({ text: `${game.title} ne s'est pas lancé. ${event.reason}`, link: { label: 'Voir le diagnostic', href: '#/diagnostic' } });
+          return;
+        }
         setLaunch((current) => {
           if (!current || current.game.id !== game.id || current.phase === 'game') return current;
           if (event.type === 'step') return { ...current, step: event.index };
@@ -178,7 +254,7 @@ export function App() {
         });
       });
     },
-    [settings.launchWindow]
+    [settings.launchWindow, gameOptions]
   );
 
   const skipLaunch = useCallback(() => {
@@ -203,8 +279,8 @@ export function App() {
 
   const displayName = profileCard.name || data?.profile.name || 'Joueur';
   const state = useMemo<AppState | null>(
-    () => (data && account ? { data, account, updateAccount, settings, updateSettings, play, profileCard, updateProfileCard, displayName, installed, downloads, install, setDownloadPaused, removeDownload, collections, saveCollections, notices, markNoticesRead, favorites, toggleFavorite, notify } : null),
-    [data, account, updateAccount, settings, updateSettings, play, profileCard, updateProfileCard, displayName, installed, downloads, install, setDownloadPaused, removeDownload, collections, saveCollections, notices, markNoticesRead, favorites, toggleFavorite, notify]
+    () => (data && account ? { data, account, updateAccount, settings, updateSettings, play, profileCard, updateProfileCard, displayName, installed, downloads, install, setDownloadPaused, removeDownload, retryDownload, online, collections, saveCollections, notices, markNoticesRead, favorites, toggleFavorite, gameOptions, updateGameOptions, uninstall, notify } : null),
+    [data, account, updateAccount, settings, updateSettings, play, profileCard, updateProfileCard, displayName, installed, downloads, install, setDownloadPaused, removeDownload, retryDownload, online, collections, saveCollections, notices, markNoticesRead, favorites, toggleFavorite, gameOptions, updateGameOptions, uninstall, notify]
   );
 
   if (!state) return <div className="overlay" role="status">Chargement de la bibliothèque</div>;
@@ -306,6 +382,12 @@ export function App() {
             </a>
             <a href="#/settings" title="Réglages" className={`top-icon${active === 'settings' ? ' active' : ''}`} aria-label="Réglages" aria-current={active === 'settings' ? 'page' : undefined}><Icon name="gear" size={16} /></a>
           </header>
+          {!online && (
+            <div className="offline-bar" role="status">
+              <Icon name="offline" size={16} stroke={2} />
+              <span><strong>Pas de connexion internet.</strong> Vos jeux installés se lancent quand même. Les téléchargements, les amis et les actualités reprendront au retour de la connexion.</span>
+            </div>
+          )}
           <div className="body">
             <main className="main" ref={mainRef}>{screen}</main>
           </div>

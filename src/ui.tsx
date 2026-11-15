@@ -12,6 +12,8 @@ const ICONS = {
   user: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0',
   search: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4',
   check: 'M5 12l5 5 9-10',
+  offline: 'M2 8.8a15 15 0 0 1 20 0M5.3 12.4a10 10 0 0 1 13.4 0M8.7 15.9a5 5 0 0 1 6.6 0M12 19.5h.01M3 3l18 18',
+  refresh: 'M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6',
   warn: 'M12 4l9 16H3zM12 10v4M12 17v.5',
   up: 'M12 19V6M6 12l6-6 6 6',
   play: 'M7 4l13 8-13 8z',
@@ -105,6 +107,18 @@ export function Logo({ size = 22 }: { size?: number }) {
       <rect x="50" y="11" width="20" height="90" rx="10" transform="rotate(14 60 56)" />
       <rect x="86" y="5" width="20" height="90" rx="10" transform="rotate(14 96 50)" />
     </svg>
+  );
+}
+
+// État vide ou erreur : une icône, ce qui se passe en une phrase, et ce que l'on peut faire.
+export function EmptyState({ icon, title, children, actions, tone = 'plain' }: { icon: IconName; title: string; children: ReactNode; actions?: ReactNode; tone?: 'plain' | 'warn' }) {
+  return (
+    <div className={`empty${tone === 'warn' ? ' warn' : ''}`}>
+      <span className="empty-icon" aria-hidden="true"><Icon name={icon} size={24} stroke={1.7} /></span>
+      <h2 className="empty-title">{title}</h2>
+      <p className="empty-text">{children}</p>
+      {actions && <div className="row empty-actions">{actions}</div>}
+    </div>
   );
 }
 
@@ -207,12 +221,30 @@ export function PlayButton({ game, onPlay, small = false }: { game: Game; onPlay
   if (!installed.has(game.id)) {
     const job = downloads.find((d) => d.gameId === game.id && d.kind === 'install' && d.state !== 'done');
     if (job) {
-      const percent = Math.floor((job.doneGb / job.sizeGb) * 100);
+      const percent = Math.min(100, Math.floor((job.doneGb / job.sizeGb) * 100));
+      if (job.state === 'failed') {
+        return (
+          <a className={`play warn${size}`} href="#/downloads" aria-label={`Installation de ${game.title} interrompue à ${percent} %. Voir les téléchargements pour la reprendre`}>
+            <Icon name="warn" size={small ? 14 : 16} stroke={2.4} />
+            Interrompue · {percent} %
+          </a>
+        );
+      }
       const label = job.state === 'active' ? 'Installation' : job.state === 'paused' ? 'En pause' : 'En attente';
-      return (
-        <a className={`play neutral${size}`} href="#/downloads">
-          <Icon name="download" size={small ? 14 : 16} stroke={2.2} />
+      const content = (
+        <>
+          <Icon name={job.state === 'paused' ? 'pause' : 'download'} size={small ? 14 : 16} stroke={2.2} />
           {label} · {percent} %
+        </>
+      );
+      // Barre verte qui avance avec le téléchargement. Le libellé est dessiné deux fois :
+      // clair sur le fond gris, foncé sur la partie verte, pour rester lisible partout.
+      return (
+        <a className={`play installing${job.state === 'active' ? '' : ' idle'}${size}`} href="#/downloads" aria-label={`${label} de ${game.title} : ${percent} %. Voir les téléchargements`}>
+          <span className="play-label">{content}</span>
+          <span className="play-fill" aria-hidden="true" style={{ clipPath: `inset(0 ${100 - percent}% 0 0)` }}>
+            <span className="play-label">{content}</span>
+          </span>
         </a>
       );
     }

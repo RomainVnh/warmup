@@ -1,11 +1,15 @@
 import os from 'node:os';
 import path from 'node:path';
 import type { DetectedGame, DetectedStore, DetectionReport, DetectSource } from '../../shared/types';
+import { detectBattlenet } from './battlenet';
 import { detectEpic } from './epic';
 import { detectGog } from './gog';
 import { parseRegOutput, queryRegistry, REGISTRY_KEYS, type RegistryKey } from './registry';
+import { detectRiot } from './riot';
+import { detectRockstar } from './rockstar';
 import { detectSteam } from './steam';
-import type { StoreResult } from './types';
+import type { FoundGame, StoreResult } from './types';
+import { installedPrograms } from './uninstall';
 
 // Détection des jeux installés : lecture seule des fichiers que Steam, Epic et GOG tiennent eux-mêmes à jour.
 // Rien n'est modifié, aucun jeu n'est ouvert, aucun compte n'est consulté.
@@ -63,7 +67,10 @@ export function matchLibrary(title: string, library: { id: string; title: string
 const NOTES: Record<DetectSource, { missing: string; windowsOnly?: string }> = {
   Steam: { missing: 'Steam n\'a pas été trouvé sur ce PC.' },
   Epic: { missing: 'Epic Games n\'a pas été trouvé sur ce PC.' },
-  GOG: { missing: 'GOG n\'a pas été trouvé sur ce PC.', windowsOnly: 'La recherche des jeux GOG fonctionne sous Windows.' }
+  GOG: { missing: 'GOG n\'a pas été trouvé sur ce PC.', windowsOnly: 'La recherche des jeux GOG fonctionne sous Windows.' },
+  'Battle.net': { missing: 'Battle.net n\'a pas été trouvé sur ce PC.', windowsOnly: 'La recherche des jeux Battle.net fonctionne sous Windows.' },
+  Rockstar: { missing: 'Le Rockstar Games Launcher n\'a pas été trouvé sur ce PC.', windowsOnly: 'La recherche des jeux Rockstar fonctionne sous Windows.' },
+  Riot: { missing: 'Le Riot Client n\'a pas été trouvé sur ce PC.', windowsOnly: 'La recherche des jeux Riot fonctionne sous Windows.' }
 };
 
 function describe(result: StoreResult, ctx: DetectContext): DetectedStore {
@@ -81,15 +88,30 @@ const safely = async (source: DetectSource, run: () => Promise<StoreResult>): Pr
   }
 };
 
-export async function detectGames(library: { id: string; title: string }[], ctx: DetectContext = systemContext()): Promise<DetectionReport> {
+/** Jeu trouvé et rapproché de la bibliothèque, avec sa manière de se lancer (gardée côté système). */
+export type MatchedGame = FoundGame & { libraryId: string | null };
+
+export async function detectAll(library: { id: string; title: string }[], ctx: DetectContext = systemContext()): Promise<{ report: DetectionReport; found: MatchedGame[] }> {
+  const windows = ctx.platform === 'win32';
+  // La liste des programmes installés n'est lue qu'une fois, pour Battle.net et Rockstar.
+  const programs = windows ? installedPrograms(await ctx.registry(REGISTRY_KEYS.uninstall32), await ctx.registry(REGISTRY_KEYS.uninstall64)) : [];
   const results = await Promise.all([
     safely('Steam', async () => detectSteam(await steamRoots(ctx))),
     safely('Epic', () => detectEpic(epicManifestDirs(ctx))),
-    safely('GOG', async () => detectGog(ctx.platform === 'win32' ? await ctx.registry(REGISTRY_KEYS.gogGames) : ''))
+    safely('GOG', async () => detectGog(windows ? await ctx.registry(REGISTRY_KEYS.gogGames) : '')),
+    safely('Battle.net', () => detectBattlenet(programs)),
+    safely('Rockstar', () => detectRockstar(programs)),
+    safely('Riot', async () => (windows ? detectRiot(path.join(ctx.env.ProgramData ?? 'C:\\ProgramData', 'Riot Games')) : { source: 'Riot', found: false, games: [] }))
   ]);
-  const games: DetectedGame[] = results
+  const found: MatchedGame[] = results
     .flatMap((result) => result.games)
     .map((game) => ({ ...game, libraryId: matchLibrary(game.title, library) }))
     .sort((a, b) => a.title.localeCompare(b.title, 'fr'));
-  return { example: false, stores: results.map((result) => describe(result, ctx)), games };
+  // L'interface reçoit tout sauf la manière de lancer : chemins de programmes et arguments restent ici.
+  const games: DetectedGame[] = found.map(({ launch, uninstall: _u, verify: _v, ...game }) => ({ ...game, canLaunch: launch !== null && game.complete }));
+  return { report: { example: false, stores: results.map((result) => describe(result, ctx)), games }, found };
+}
+
+export async function detectGames(library: { id: string; title: string }[], ctx: DetectContext = systemContext()): Promise<DetectionReport> {
+  return (await detectAll(library, ctx)).report;
 }

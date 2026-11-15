@@ -19,6 +19,8 @@ export function readItem(text: string): FoundGame | null {
   const title = cleanText(raw.DisplayName);
   const folder = typeof raw.InstallLocation === 'string' ? raw.InstallLocation.trim().slice(0, 400) : '';
   if (!id || !title || !folder) return null;
+  // L'identifiant sert à construire l'adresse de lancement : lettres, chiffres, points, tirets et soulignés uniquement.
+  if (!/^[\w.-]{1,80}$/.test(id)) return null;
   // Un contenu additionnel porte le nom du jeu principal dans MainGameAppName.
   if (typeof raw.MainGameAppName === 'string' && raw.MainGameAppName && raw.MainGameAppName !== raw.AppName) return null;
   const categories = Array.isArray(raw.AppCategories) ? raw.AppCategories.filter((c): c is string => typeof c === 'string') : [];
@@ -29,7 +31,8 @@ export function readItem(text: string): FoundGame | null {
     title,
     folder: path.normalize(folder),
     sizeGb: bytesToGb(raw.InstallSize),
-    complete: raw.bIsIncompleteInstall !== true
+    complete: raw.bIsIncompleteInstall !== true,
+    launch: { kind: 'url', url: `com.epicgames.launcher://apps/${id}?action=launch&silent=true` }
   };
 }
 

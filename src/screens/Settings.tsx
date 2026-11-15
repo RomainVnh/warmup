@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import type { DetectionReport, Settings } from '../../shared/types';
 import { api } from '../api';
 import { useApp } from '../context';
@@ -93,6 +93,15 @@ function Detection() {
   const [report, setReport] = useState<DetectionReport | null>(null);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
+  const boxRef = useRef<HTMLDivElement>(null);
+
+  // Arrivée depuis « Rechercher les jeux installés » (#/settings/jeux) : on montre la section et on lance la recherche.
+  useEffect(() => {
+    if (!window.location.hash.startsWith('#/settings/jeux')) return;
+    boxRef.current?.scrollIntoView({ block: 'center' });
+    void search();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const search = async () => {
     setBusy(true);
@@ -107,11 +116,11 @@ function Detection() {
   };
 
   return (
-    <div className="detect">
+    <div className="detect" ref={boxRef}>
       <div className="list-row" style={{ flexWrap: 'nowrap', gap: 24 }}>
         <div className="grow">
           <div className="strong">Rechercher les jeux installés sur ce PC</div>
-          <div className="small muted" style={{ marginTop: 2 }}>Warmup lit la liste tenue par Steam, Epic Games et GOG. Rien n'est modifié et aucun jeu n'est ouvert.</div>
+          <div className="small muted" style={{ marginTop: 2 }}>Warmup lit la liste tenue par Steam, Epic Games, GOG, Battle.net, Rockstar et Riot. Rien n'est modifié et aucun jeu n'est ouvert.</div>
         </div>
         <button type="button" className="btn" onClick={search} disabled={busy}>
           <Icon name="search" size={14} />{busy ? 'Recherche…' : report ? 'Relancer' : 'Rechercher'}
@@ -143,6 +152,7 @@ function Detection() {
                 <span className="small muted detect-size">{game.sizeGb === null ? 'Taille inconnue' : `${game.sizeGb.toLocaleString('fr-FR')} Go`}</span>
                 <span className="chip">{game.source}</span>
                 {!game.complete && <span className="chip warn"><Icon name="warn" size={11} stroke={2.6} />Installation inachevée</span>}
+                {game.complete && !game.canLaunch && <span className="chip">Lancement depuis Warmup pas encore pris en charge</span>}
                 {game.libraryId
                   ? <a className="link" href={`#/game/${game.libraryId}`}>Voir la fiche</a>
                   : <span className="small muted">Pas encore dans la bibliothèque</span>}
