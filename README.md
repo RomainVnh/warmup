@@ -5,7 +5,7 @@
 <h1 align="center">Warmup</h1>
 
 <p align="center">
-  <strong>Le lanceur de jeux PC qui s'assure que chaque partie démarre dans de bonnes conditions.</strong><br>
+  <strong> Warmup est une bibliothèque inédite et lanceur de jeux vidéos, spécialisé dans l'optimisation et qui s'assure que chaque partie démarre dans de bonnes conditions.</strong><br>
   En cas de problème, Warmup sait pourquoi, l'explique simplement et le répare.
 </p>
 
