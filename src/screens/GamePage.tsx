@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { Game } from '../../shared/types';
+import { api } from '../api';
 import { findGame, useApp } from '../context';
 import { GameSettings } from '../GameSettings';
 import { GameArt, GameLogo, Icon, PlayButton, Ring, Segmented, Stat, StatusText, sourceLabel } from '../ui';
@@ -38,7 +39,11 @@ export function GamePage({ id, initialTab }: { id: string; initialTab: string })
   const favorite = favorites.has(game.id);
   const warn = game.status === 'warn';
 
-  const { done, total } = game.achievements;
+  // Version vierge : rien d'inventé. Les succès obtenus, les amis, les avis et les réglages conseillés
+  // viendront avec les connexions aux plateformes ; leurs onglets ne s'affichent pas d'ici là.
+  const tabs = data.demo ? TABS : TABS.filter((t) => t.id === 'apercu' || t.id === 'sante' || (t.id === 'actus' && game.news.length > 0));
+  const { done } = game.achievements;
+  const total = data.demo ? game.achievements.total : 0;
   const percent = total ? Math.round((done / total) * 100) : 0;
   const warnChecks = game.checks.filter((c) => c.status === 'warn').length;
 
@@ -87,7 +92,7 @@ export function GamePage({ id, initialTab }: { id: string; initialTab: string })
       {settingsOpen && <GameSettings game={game} onClose={() => setSettingsOpen(false)} />}
 
       <div className="tabs" role="tablist" aria-label="Sections de la fiche">
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)}>
             {t.label}
             {t.id === 'sante' && warnChecks > 0 && <span className="count">{warnChecks}</span>}
@@ -275,15 +280,20 @@ function Ach({ a }: { a: Game['achievements']['list'][number] }) {
 }
 
 function Overview({ game, onTab }: { game: Game; onTab(tab: TabId): void }) {
-  const { notify } = useApp();
+  const { notify, data } = useApp();
   const online = game.friends.filter((f) => f.online).length;
-  const { done, total, list } = game.achievements;
+  const { done, list } = game.achievements;
+  const total = data.demo ? game.achievements.total : 0;
+  const meta = [game.genre, game.developer, game.year || '', data.demo || game.developer ? (game.multiplayer ? 'Multijoueur' : 'Solo') : ''].filter(Boolean).join(' · ');
+  const openFolder = () => void api.openGameFolder(game.id).then((result) => notify(result.message)).catch(() => notify('Le dossier n\'a pas pu être ouvert.'));
   return (
     <div className="game-layout">
       <div className="flow">
         <section>
-          <p className="lead">{game.summary}</p>
-          <p className="meta-line">{game.genre} · {game.developer} · {game.year} · {game.multiplayer ? 'Multijoueur' : 'Solo'}</p>
+          {game.summary
+            ? <p className="lead">{game.summary}</p>
+            : <p className="lead muted">{game.manual ? 'Jeu ajouté à la main. Warmup le lance, suit vos parties et vérifie le PC avant chaque lancement.' : 'Warmup a trouvé ce jeu sur votre PC. Il le lance, suit vos parties et vérifie le PC avant chaque lancement.'}</p>}
+          {game.summary && <p className="meta-line">{meta}</p>}
         </section>
 
         <Gallery game={game} />
@@ -341,17 +351,17 @@ function Overview({ game, onTab }: { game: Game; onTab(tab: TabId): void }) {
           <h2 className="h2">Informations</h2>
           <dl className="dl">
             <dt>Plateforme</dt><dd>{game.source === 'Manuel' ? 'Aucune, jeu ajouté à la main' : `${sourceLabel(game.source)}, ouvert en arrière-plan par Warmup`}</dd>
-            <dt>Version</dt><dd>{game.version}</dd>
-            <dt>Place sur le disque</dt><dd>{game.sizeGb} Go</dd>
-            <dt>Emplacement</dt><dd>{game.location}</dd>
-            <dt>Sauvegardes</dt><dd>{game.source === 'Manuel' ? 'Copie locale seulement' : `Synchronisées avec ${sourceLabel(game.source)}`}</dd>
+            {game.version && (<><dt>Version</dt><dd>{game.version}</dd></>)}
+            <dt>Place sur le disque</dt><dd>{game.sizeGb ? `${game.sizeGb} Go` : 'Inconnue'}</dd>
+            <dt>Emplacement</dt><dd style={{ overflowWrap: 'anywhere' }}>{game.location}</dd>
+            {data.demo && (<><dt>Sauvegardes</dt><dd>{game.source === 'Manuel' ? 'Copie locale seulement' : `Synchronisées avec ${sourceLabel(game.source)}`}</dd></>)}
             {game.region && (<><dt>Serveurs</dt><dd>{game.region}</dd></>)}
           </dl>
           <div className="row" style={{ marginTop: 18 }}>
-            <button type="button" className="btn" onClick={() => notify('L\'ouverture du dossier arrivera avec la version Windows.')}>Ouvrir le dossier</button>
+            <button type="button" className="btn" onClick={openFolder}>Ouvrir le dossier</button>
           </div>
         </section>
-        {game.multiplayer && (
+        {data.demo && game.multiplayer && (
           <section>
             <h2 className="h2">Amis</h2>
             {game.friends.length === 0 && <p className="muted">Aucun ami trouvé sur ce jeu pour l'instant.</p>}
@@ -375,21 +385,21 @@ function Overview({ game, onTab }: { game: Game; onTab(tab: TabId): void }) {
             <a className="btn" style={{ marginTop: 14 }} href={`#/mods/${game.id}`}>Gérer les mods</a>
           </section>
         )}
-        <section>
+        {data.demo && <section>
           <h2 className="h2">Un souci ?</h2>
           <p className="muted">Coach, l'assistant de Warmup, connaît l'état de ce jeu et de votre PC.</p>
           <a className="btn" style={{ marginTop: 14 }} href="#/assistant">Demander à Coach</a>
-        </section>
+        </section>}
       </aside>
     </div>
   );
 }
 
 function Health({ game }: { game: Game }) {
-  const { play } = useApp();
+  const { play, data } = useApp();
   return (
     <div className="flow narrow">
-      <section>
+      {data.demo && <section>
         <h2 className="h2">Ce qui a changé depuis la dernière partie réussie</h2>
         <p className="muted" style={{ margin: '6px 0 14px' }}>Du plus suspect au moins suspect. C'est ici que se trouve presque toujours la cause d'un problème.</p>
         {game.changes.length === 0 && <p className="strong">Rien n'a changé : le jeu est dans l'état exact où il tournait bien.</p>}
@@ -403,7 +413,7 @@ function Health({ game }: { game: Game }) {
             <span className="small muted">{c.when}</span>
           </div>
         ))}
-      </section>
+      </section>}
       <section>
         <div className="block-head">
           <h2 className="h2">Contrôle avant lancement</h2>
@@ -414,7 +424,7 @@ function Health({ game }: { game: Game }) {
             <span className={`icon-box sm${c.status === 'ok' ? ' ok' : ''}`}><Icon name={c.status === 'ok' ? 'check' : 'warn'} size={14} stroke={2.6} /></span>
             <span className="strong" style={{ width: 190 }}>{c.name}</span>
             <span className="grow muted">{c.value}</span>
-            <StatusText status={c.status}>{c.status === 'ok' ? 'Bon' : 'À corriger'}</StatusText>
+            <StatusText status={c.status}>{c.status === 'ok' ? 'Bon' : data.demo ? 'À corriger' : 'À surveiller'}</StatusText>
           </div>
         ))}
       </section>

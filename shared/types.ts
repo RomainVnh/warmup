@@ -71,6 +71,8 @@ export interface Game {
   launch: { steps: LaunchStep[]; resultTitle: string; resultText: string };
   /** Réglages graphiques conseillés pour ce PC. */
   graphics: GraphicsAdvice;
+  /** Vrai : jeu ajouté à la main par le joueur, hors plateforme. */
+  manual?: boolean;
 }
 
 export interface GraphicsRow { name: string; value: string; why: string }
@@ -164,7 +166,38 @@ export interface Profile {
   stats: Tile[];
 }
 
+/** Une partie réellement jouée, mesurée par Warmup de l'extérieur du jeu. */
+export interface SessionRecord {
+  id: string;
+  gameId: string;
+  /** Début et fin, en millisecondes depuis 1970. */
+  start: number;
+  end: number;
+  seconds: number;
+  /** Mémoire utilisée par le jeu au plus haut, en Mo ; null si elle n'a pas pu être lue. */
+  peakMemMb: number | null;
+  /** Charge moyenne du processeur pendant la partie, en pour cent. */
+  avgCpu: number | null;
+  /** Mémoire du jeu au fil de la partie, en Mo (48 valeurs au plus). */
+  samples: number[];
+}
+
+/** Une ligne du journal : ce que Warmup a modifié sur le PC. */
+export interface JournalEntry {
+  id: string;
+  /** Moment de l'action, en millisecondes depuis 1970. */
+  at: number;
+  title: string;
+  detail: string;
+  gameId?: string;
+  /** Faux : l'action ne peut pas être annulée (une désinstallation, par exemple). */
+  undoable: boolean;
+  undone: boolean;
+}
+
 export interface Snapshot {
+  /** Vrai : version de test, avec des jeux, des amis et des chiffres d'exemple. Faux : uniquement ce qui est lu sur ce PC. */
+  demo: boolean;
   games: Game[];
   week: { hours: number[]; total: string; cleanLaunches: string; fixes: string };
   pc: { parts: PcPart[]; issues: PcIssue[]; servers: ServerState[]; log: FixLog[] };
@@ -384,6 +417,14 @@ export interface WarmupApi {
   setCollections(list: Collection[]): Promise<Collection[]>;
   getAccount(): Promise<Account>;
   setAccount(patch: Partial<Account>): Promise<Account>;
+  /** Ajoute un jeu à la main : la partie système ouvre le sélecteur de fichiers, l'interface ne transmet aucun chemin. */
+  addGame(): Promise<GameActionResult & { gameId?: string }>;
+  renameGame(gameId: string, title: string): Promise<GameActionResult>;
+  /** Retire de la bibliothèque un jeu ajouté à la main. Ses fichiers ne sont pas touchés. */
+  removeGame(gameId: string): Promise<GameActionResult>;
+  getJournal(): Promise<JournalEntry[]>;
+  /** Annule une action du journal quand c'est possible, et renvoie le journal à jour. */
+  undoFix(id: string): Promise<JournalEntry[]>;
   getGameOptions(): Promise<Record<string, GameOptions>>;
   setGameOptions(gameId: string, patch: Partial<GameOptions>): Promise<Record<string, GameOptions>>;
   /** Emplacement et taille d'un jeu installé, et ce que Warmup peut faire de ses fichiers. */

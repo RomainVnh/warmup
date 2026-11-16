@@ -286,6 +286,7 @@ const games: Game[] = [
 ];
 
 export const snapshot: Snapshot = {
+  demo: true,
   games,
   week: { hours: [3.4, 0.8, 2, 1.2, 2.2, 3, 4.4], total: '19 h', cleanLaunches: '14 sur 15', fixes: '3' },
   pc: {

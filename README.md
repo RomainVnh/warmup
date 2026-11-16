@@ -11,7 +11,7 @@
 
 <p align="center">
   Electron · React · TypeScript · Vite<br>
-  <sub>Version 0.2.0 · en développement · Windows (cible) et macOS</sub>
+  <sub>Version 0.3.0 · en développement · Windows (cible) et macOS</sub>
 </p>
 
 <p align="center">
@@ -80,21 +80,24 @@ Trois règles guident tout le reste :
 
 ## État du projet
 
-L'interface est complète. Ce qui touche réellement au PC est en cours : tout fonctionne aujourd'hui avec des données d'exemple, sur Mac comme sur Windows.
+Une application installée est **vierge** : elle ne montre que ce qu'elle lit sur le PC (jeux installés, matériel, heures de jeu, parties mesurées). La **version de test**, avec ses jeux et ses chiffres d'exemple, est réservée au compte admin et au développement (`npm run dev`).
 
 | Élément | État |
 | --- | --- |
 | Interface (toutes les pages) | Terminée |
 | Détection des jeux installés (Steam, Epic, GOG, Battle.net, Rockstar, Riot) | Écrite et testée sur des fichiers d'exemple, à vérifier sur un vrai PC |
 | Lecture du matériel (écran, carte graphique, mémoire, disque) | Fonctionne ; vérifiée sur Mac, à vérifier sous Windows |
-| Lancement d'un jeu détecté depuis « Jouer » | Écrit, à vérifier sur un vrai PC |
+| Lancement d'un jeu détecté depuis « Jouer » | Fonctionne sur Mac, à vérifier sur un vrai PC |
+| Bibliothèque réelle, ajout d'un jeu à la main | Fonctionne |
+| Heures de jeu et bilans de parties (durée, mémoire, processeur) | Fonctionnent sur Mac, à vérifier sous Windows |
+| Journal des actions, avec « Annuler » | En place ; aucune correction réelle à annuler pour l'instant |
 | Installateurs Mac et Windows | Fabriqués, non signés |
 | Contrôles avant lancement | Simulés |
-| Corrections, journal, bilans de partie | Simulés |
-| Compte, connexion par e-mail | Simulés (pas encore de serveur) |
+| Corrections avant lancement, images par seconde, ping | À faire |
+| Compte | Enregistré sur le PC ; lien par e-mail et synchronisation à faire (serveur) |
 | Connexions officielles aux plateformes | À faire |
 | Coach (assistant) | Conversation d'exemple, pas encore relié à un service |
-| Téléchargements et mods | Simulés |
+| Téléchargements et mods | Version de test seulement ; les téléchargements fictifs seront supprimés |
 
 Les jeux affichés sont réels ; leurs succès et leurs actualités aussi. Les heures de jeu, les mesures et les incidents sont inventés.
 
@@ -102,7 +105,7 @@ Les jeux affichés sont réels ; leurs succès et leurs actualités aussi. Les h
 
 ### Pour utiliser l'application
 
-Les installateurs sont fabriqués localement (voir [Fabriquer les installateurs](#fabriquer-les-installateurs)) et rangés dans `installateurs/` :
+Les installateurs se téléchargent depuis la page [Releases](https://github.com/RomainVnh/warmup/releases) du dépôt. Ils ne sont pas rangés dans le code : chacun dépasse la taille qu'un dépôt Git accepte pour un fichier (100 Mo). Ils se fabriquent aussi localement (voir [Fabriquer les installateurs](#fabriquer-les-installateurs)), dans `installateurs/` :
 
 | Système | Fichier |
 | --- | --- |

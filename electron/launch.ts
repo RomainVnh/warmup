@@ -39,6 +39,11 @@ export async function openGame(plan: LaunchPlan): Promise<LaunchResult> {
   }
 
   if (!fs.existsSync(plan.file)) return { ok: false, reason: 'Le programme du jeu est introuvable. Il a peut-être été déplacé ou désinstallé.' };
+  // Sur Mac, une application est un dossier « .app » : c'est le système qui l'ouvre.
+  if (process.platform === 'darwin' && /\.app$/i.test(plan.file)) {
+    const error = await shell.openPath(plan.file);
+    return error ? { ok: false, reason: 'macOS a refusé d\'ouvrir le jeu.' } : { ok: true };
+  }
   return new Promise<LaunchResult>((resolve) => {
     try {
       const child = spawn(plan.file, plan.args, { cwd: plan.cwd, detached: true, stdio: 'ignore', windowsHide: false, shell: false });

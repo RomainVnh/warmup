@@ -1,5 +1,5 @@
 import { useApp } from '../context';
-import { Ambient, ASSISTANT_NAME, CoachMark, Icon } from '../ui';
+import { Ambient, ASSISTANT_NAME, CoachMark, EmptyState, Icon } from '../ui';
 
 const CONTEXT = ['Changements depuis la dernière partie réussie', 'Rapport du dernier plantage', 'Mods et leurs versions', 'État du réseau et du PC', 'Corrections déjà tentées'];
 const IDEAS = ['Pourquoi mon jeu saccade le soir ?', 'Quel mod a cassé ma sauvegarde ?', 'Mon écran est-il bien réglé ?'];
@@ -7,8 +7,24 @@ const IDEAS = ['Pourquoi mon jeu saccade le soir ?', 'Quel mod a cassé ma sauve
 // Écran de démonstration : la conversation est écrite d'avance.
 // L'assistant réel passera par un serveur, jamais par une clé rangée dans l'appli.
 export function Assistant() {
-  const { notify } = useApp();
+  const { notify, data } = useApp();
   const later = () => notify(`${ASSISTANT_NAME} sera branché dans une prochaine étape.`);
+  // Version vierge : pas de conversation d'exemple. Coach a besoin du serveur de Warmup, qui n'existe pas encore.
+  if (!data.demo) {
+    return (
+      <div className="page">
+        <div className="page-head">
+          <div>
+            <span className="eyebrow">{ASSISTANT_NAME} · l'assistant de Warmup</span>
+            <h1 className="title">{ASSISTANT_NAME} arrive bientôt</h1>
+          </div>
+        </div>
+        <EmptyState icon="chat" title={`${ASSISTANT_NAME} n'est pas encore disponible`} actions={<a className="btn" href="#/diagnostic"><Icon name="pulse" size={14} />Voir le diagnostic du PC</a>}>
+          Il répondra à vos questions en regardant ce qui a changé sur votre PC. Il lui faut le service en ligne de Warmup, encore en préparation. En attendant, le diagnostic et les bilans de parties sont déjà là.
+        </EmptyState>
+      </div>
+    );
+  }
   return (
     <div className="page">
       <Ambient />

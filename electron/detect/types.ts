@@ -24,6 +24,9 @@ export interface FoundGame {
   uninstall?: LaunchPlan | null;
   /** Vérification des fichiers par la plateforme (Steam seulement). */
   verify?: LaunchPlan | null;
+  /** Temps de jeu et dernière partie d'après la plateforme, quand elle les enregistre sur le PC (Steam). */
+  minutes?: number;
+  lastPlayed?: number;
 }
 
 export interface StoreResult { source: DetectSource; found: boolean; games: FoundGame[] }

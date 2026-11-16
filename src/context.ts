@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import type { Account, Collection, GameOptions, Download, Game, Notice, ProfileCard, Settings, Snapshot } from '../shared/types';
+import type { Account, Collection, GameOptions, JournalEntry, Download, Game, Notice, ProfileCard, Settings, Snapshot } from '../shared/types';
 
 export interface AppState {
   data: Snapshot;
@@ -32,6 +32,13 @@ export interface AppState {
   updateAccount(patch: Partial<Account>): void;
   favorites: Set<string>;
   toggleFavorite(id: string): void;
+  /** Relit la bibliothèque et les mesures (version vierge : après une partie, un ajout, une recherche). */
+  reload(reset?: boolean): Promise<void>;
+  /** Ajoute un jeu à la main, par le sélecteur de fichiers du système. */
+  addGame(): Promise<void>;
+  /** Journal de ce que Warmup a modifié sur le PC, du plus récent au plus ancien. */
+  journal: JournalEntry[];
+  undoFix(id: string): void;
   /** Options de lancement propres à chaque jeu. */
   gameOptions: Record<string, GameOptions>;
   updateGameOptions(gameId: string, patch: Partial<GameOptions>): void;

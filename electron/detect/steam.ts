@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { bytesToGb, cleanText, listFiles, pathKey, readText } from './files';
+import { bytesToGb, cleanText, listFiles, modifiedAt, pathKey, readText } from './files';
 import { parseVdf, vdfNode, vdfText, type VdfNode } from './vdf';
 import type { FoundGame, StoreResult } from './types';
 
@@ -49,6 +49,42 @@ export function readManifest(text: string, library: string): FoundGame | null {
   };
 }
 
+export interface Playtime { minutes: number; lastPlayed: number }
+
+/**
+ * Temps de jeu tenu par Steam pour le compte utilisé en dernier sur ce PC :
+ * <Steam>/userdata/<compte>/config/localconfig.vdf, sous Software > Valve > Steam > apps > <numéro> (Playtime en minutes, LastPlayed).
+ */
+export function readPlaytime(text: string): Map<string, Playtime> {
+  const result = new Map<string, Playtime>();
+  const root = parseVdf(text);
+  const apps = vdfNode(vdfNode(vdfNode(vdfNode(vdfNode(root, 'userlocalconfigstore') ?? root, 'software'), 'valve'), 'steam'), 'apps');
+  for (const [id, value] of Object.entries(apps ?? {})) {
+    if (!/^\d{1,10}$/.test(id) || typeof value === 'string') continue;
+    const minutes = Number(vdfText(value, 'playtime'));
+    const last = Number(vdfText(value, 'lastplayed'));
+    if (Number.isFinite(minutes) && minutes >= 0) result.set(id, { minutes, lastPlayed: Number.isFinite(last) && last > 0 ? last * 1000 : 0 });
+  }
+  return result;
+}
+
+async function steamPlaytime(root: string): Promise<Map<string, Playtime>> {
+  const users = path.join(root, 'userdata');
+  let best = '';
+  let bestTime = 0;
+  for (const user of await listFiles(users, 50)) {
+    if (!/^\d{1,12}$/.test(user)) continue;
+    const file = path.join(users, user, 'config', 'localconfig.vdf');
+    const time = await modifiedAt(file);
+    if (time > bestTime) {
+      best = file;
+      bestTime = time;
+    }
+  }
+  const text = best ? await readText(best, 40 * 1024 * 1024) : null;
+  return text ? readPlaytime(text) : new Map();
+}
+
 /** `roots` : dossiers où Steam peut être installé, du plus probable au moins probable. */
 export async function detectSteam(roots: string[]): Promise<StoreResult> {
   for (const root of roots) {
@@ -67,6 +103,11 @@ export async function detectSteam(roots: string[]): Promise<StoreResult> {
         const game = text ? readManifest(text, library) : null;
         if (game && !games.has(game.storeId)) games.set(game.storeId, game);
       }
+    }
+    const played = await steamPlaytime(root);
+    for (const game of games.values()) {
+      const time = played.get(game.storeId);
+      if (time) Object.assign(game, { minutes: time.minutes, lastPlayed: time.lastPlayed || undefined });
     }
     return { source: 'Steam', found: true, games: [...games.values()] };
   }

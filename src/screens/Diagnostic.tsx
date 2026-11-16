@@ -5,7 +5,7 @@ import { useApp } from '../context';
 import { Ambient, Icon, Ring, Stat, StatusText } from '../ui';
 
 export function Diagnostic() {
-  const { data, notify } = useApp();
+  const { data, notify, journal, undoFix } = useApp();
   const { servers } = data.pc;
   const [parts, setParts] = useState<PcPart[]>(data.pc.parts);
   const [checkedAt, setCheckedAt] = useState('Contrôlé à l\'ouverture de Warmup');
@@ -26,7 +26,6 @@ export function Diagnostic() {
     }
   };
   const [issues, setIssues] = useState(data.pc.issues);
-  const [log, setLog] = useState(data.pc.log);
   const good = parts.filter((p) => p.status === 'ok').length;
   const allGood = good === parts.length;
 
@@ -81,8 +80,8 @@ export function Diagnostic() {
         ))}
       </section>
 
-      <div className="split even section">
-        <section>
+      <div className={servers.length > 0 ? 'split even section' : 'section'}>
+        {servers.length > 0 && <section>
           <h2 className="h2">Serveurs de vos jeux</h2>
           <p className="small muted" style={{ margin: '6px 0 10px' }}>Ping mesuré vers les vrais serveurs de chaque jeu, et état du service chez l'éditeur.</p>
           {servers.map((s) => (
@@ -95,34 +94,32 @@ export function Diagnostic() {
               <span style={{ width: 170 }}><StatusText status={s.status}>{s.state}</StatusText></span>
             </div>
           ))}
-        </section>
+        </section>}
         <section>
           <h2 className="h2">Journal des corrections</h2>
-          <p className="small muted" style={{ margin: '6px 0 22px' }}>Tout ce que Warmup a modifié sur ce PC, avec la valeur d'origine. Chaque ligne peut être annulée.</p>
-          {log.length === 0 && <p className="muted">Aucune correction en place.</p>}
+          <p className="small muted" style={{ margin: '6px 0 22px' }}>Tout ce que Warmup a modifié sur ce PC. Chaque correction peut être annulée.</p>
+          {journal.length === 0 && <p className="muted">Warmup n'a encore rien modifié sur ce PC.</p>}
           <ol className="tl">
-            {log.map((entry) => (
-              <li key={entry.what}>
+            {journal.slice(0, 3).map((entry) => (
+              <li key={entry.id}>
                 <div className="row" style={{ flexWrap: 'nowrap', alignItems: 'flex-start', gap: 16 }}>
                   <div className="grow">
-                    <div className="strong">{entry.what}</div>
+                    <div className="strong">{entry.title}</div>
                     <div className="small muted">{entry.detail}</div>
                   </div>
-                  <button
-                    type="button"
-                    className="btn"
-                    onClick={() => {
-                      setLog((list) => list.filter((l) => l.what !== entry.what));
-                      notify('Correction annulée, valeur d\'origine rétablie.');
-                    }}
-                  >
-                    <Icon name="back" size={14} stroke={2} />
-                    Annuler
-                  </button>
+                  {entry.undone
+                    ? <span className="chip">Annulée</span>
+                    : entry.undoable && (
+                      <button type="button" className="btn" aria-label={`Annuler : ${entry.title}`} onClick={() => { undoFix(entry.id); notify('Correction annulée, valeur d\'origine rétablie.'); }}>
+                        <Icon name="back" size={14} stroke={2} />
+                        Annuler
+                      </button>
+                    )}
                 </div>
               </li>
             ))}
           </ol>
+          <a className="link" href="#/journal" style={{ display: 'inline-block', marginTop: 16 }}>Tout le journal</a>
         </section>
       </div>
 
@@ -130,7 +127,7 @@ export function Diagnostic() {
         <div className="stats">
           <Stat value={data.week.cleanLaunches} label="Lancements sans incident cette semaine" />
           <Stat value={data.week.fixes} label="Problèmes corrigés avant de jouer" />
-          <Stat value={log.length} label="Corrections en place" />
+          <Stat value={journal.filter((entry) => entry.undoable && !entry.undone).length} label="Corrections en place" />
         </div>
       </section>
     </div>

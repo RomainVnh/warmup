@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import type { Game, Source } from '../../shared/types';
+import { api } from '../api';
 import { useApp } from '../context';
 import { EmptyState, GameArt, GameCard, Icon, Segmented, StatusText, hoursLabel, sourceLabel } from '../ui';
 
@@ -18,7 +19,22 @@ const sorters: Record<Sort, (a: Game, b: Game) => number> = {
 };
 
 export function Library({ initialQuery }: { initialQuery: string }) {
-  const { data, favorites, notify, installed, collections, saveCollections } = useApp();
+  const { data, favorites, notify, installed, collections, saveCollections, addGame, reload } = useApp();
+  const [scanning, setScanning] = useState(false);
+  // Relit les plateformes. Version vierge : la bibliothèque est mise à jour avec ce qui est trouvé.
+  const rescan = async () => {
+    setScanning(true);
+    try {
+      const report = await api.detectGames();
+      await reload();
+      const count = report.games.length;
+      notify(report.example ? 'Exemple : dans la version vierge, l\'analyse relit vos plateformes et met la bibliothèque à jour.' : count === 0 ? 'Analyse terminée : aucun jeu trouvé sur ce PC.' : `Analyse terminée : ${count} jeu${count > 1 ? 'x' : ''} trouvé${count > 1 ? 's' : ''} sur ce PC.`);
+    } catch {
+      notify('L\'analyse n\'a pas abouti. Réessayez dans un instant.');
+    } finally {
+      setScanning(false);
+    }
+  };
   const [collectionId, setCollectionId] = useState('');
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState('');
@@ -104,8 +120,8 @@ export function Library({ initialQuery }: { initialQuery: string }) {
         </div>
         <div className="row">
           <button type="button" className="btn" disabled={collections.length >= 12} onClick={() => setCreating(true)}><Icon name="folder" size={14} />Nouvelle collection</button>
-          <button type="button" className="btn" onClick={() => notify('Analyse des dossiers terminée : aucun nouveau jeu trouvé.')}>Relancer l'analyse</button>
-          <button type="button" className="btn btn-primary" onClick={() => notify('L\'ajout d\'un jeu à la main arrivera avec la version Windows.')}>Ajouter un jeu</button>
+          <button type="button" className="btn" disabled={scanning} onClick={rescan}>{scanning ? 'Analyse…' : 'Relancer l\'analyse'}</button>
+          <button type="button" className="btn btn-primary" onClick={() => void addGame()}>Ajouter un jeu</button>
         </div>
       </div>
 
@@ -191,7 +207,7 @@ export function Library({ initialQuery }: { initialQuery: string }) {
           title="Votre bibliothèque est vide"
           actions={<>
             <a className="btn btn-primary" href="#/settings/jeux"><Icon name="search" size={14} />Rechercher les jeux installés</a>
-            <button type="button" className="btn" onClick={() => notify('L\'ajout d\'un jeu à la main arrivera avec la version Windows.')}><Icon name="plus" size={14} />Ajouter un jeu</button>
+            <button type="button" className="btn" onClick={() => void addGame()}><Icon name="plus" size={14} />Ajouter un jeu</button>
           </>}
         >
           Warmup n'a encore trouvé aucun jeu. Lancez la recherche : il lit la liste tenue par Steam, Epic Games, GOG, Battle.net, Rockstar et Riot, sans rien modifier.

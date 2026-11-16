@@ -44,8 +44,11 @@ export function Onboarding() {
     headingRef.current?.focus();
   }, [step]);
 
-  const next = () => setStep((s) => Math.min(STEPS.length - 1, s + 1));
-  const back = () => setStep((s) => Math.max(0, s - 1));
+  // Version vierge : relier une plateforme n'existe pas encore pour de vrai, l'étape n'est pas proposée.
+  const visible = STEPS.map((name, index) => ({ name, index })).filter((item) => data.demo || item.name !== 'Plateformes');
+  const position = Math.max(0, visible.findIndex((item) => item.index === step));
+  const next = () => setStep(visible[Math.min(visible.length - 1, position + 1)].index);
+  const back = () => setStep(visible[Math.max(0, position - 1)].index);
   const finish = () => {
     accountOnlyNext = false;
     updateAccount({ onboarded: true });
@@ -126,10 +129,10 @@ export function Onboarding() {
       body = (
         <>
           {title('Vos préférences')}
-          <p className="ob-lead">Trois choix pour commencer. Ils se changent ensuite dans Réglages.</p>
+          <p className="ob-lead">Quelques choix pour commencer. Ils se changent ensuite dans Réglages.</p>
           <div className="ob-list">
             <PrefRow label="Afficher la fenêtre de lancement" text="Deux à trois secondes avant chaque jeu, pour voir ce qui a été vérifié." checked={settings.launchWindow} onChange={(v) => updateSettings({ launchWindow: v })} />
-            <PrefRow label="Demander mon accord avant chaque correction" text="Warmup montre ce qui va changer et attend votre réponse. Tout reste annulable." checked={settings.askBeforeFix} onChange={(v) => updateSettings({ askBeforeFix: v })} />
+            {data.demo && <PrefRow label="Demander mon accord avant chaque correction" text="Warmup montre ce qui va changer et attend votre réponse. Tout reste annulable." checked={settings.askBeforeFix} onChange={(v) => updateSettings({ askBeforeFix: v })} />}
             <PrefRow label="Ouvrir Warmup au démarrage de Windows" text="L'application reste discrète dans la zone de notification." checked={settings.startWithWindows} onChange={(v) => updateSettings({ startWithWindows: v })} />
           </div>
         </>
@@ -146,7 +149,7 @@ export function Onboarding() {
             <div><dt>Compte</dt><dd>{account.email}</dd></div>
             <div><dt>PC</dt><dd>{pcDone ? `${data.pc.parts.length} éléments vérifiés, ${warnParts} à améliorer` : 'Analyse remise à plus tard'}</dd></div>
             <div><dt>Jeux</dt><dd>{detection ? `${detection.games.length} jeux trouvés sur ce PC` : 'Recherche remise à plus tard'}</dd></div>
-            <div><dt>Plateformes</dt><dd>{account.linked.length ? account.linked.join(', ') : 'Aucune reliée pour l\'instant'}</dd></div>
+            {data.demo && <div><dt>Plateformes</dt><dd>{account.linked.length ? account.linked.join(', ') : 'Aucune reliée pour l\'instant'}</dd></div>}
           </dl>
         </>
       );
@@ -157,9 +160,9 @@ export function Onboarding() {
       <aside className="ob-side" aria-label="Étapes de la configuration">
         <span className="ob-brand"><Logo size={22} /><span>Warmup</span></span>
         {!accountOnly && <ol className="ob-steps">
-          {STEPS.map((name, index) => (
+          {visible.map(({ name, index }, order) => (
             <li key={name} className={index === step ? 'current' : index < step ? 'done' : ''} aria-current={index === step ? 'step' : undefined}>
-              <span className="ob-step-mark">{index < step ? <Icon name="check" size={11} stroke={3} /> : index + 1}</span>
+              <span className="ob-step-mark">{index < step ? <Icon name="check" size={11} stroke={3} /> : order + 1}</span>
               {name}
             </li>
           ))}
@@ -170,7 +173,7 @@ export function Onboarding() {
 
       <main className="ob-main">
         <div className="ob-body" key={step}>
-          <span className="eyebrow">{accountOnly ? 'Connexion' : `Étape ${step + 1} sur ${STEPS.length}`}</span>
+          <span className="eyebrow">{accountOnly ? 'Connexion' : `Étape ${position + 1} sur ${visible.length}`}</span>
           {body}
         </div>
         <div className="ob-foot">
@@ -231,6 +234,11 @@ function AccountStep() {
     }
     setError('');
     setMail(value);
+    // Version vierge : le compte est créé sur ce PC tout de suite. L'envoi d'un lien par e-mail viendra avec le service en ligne.
+    if (!data.demo) {
+      updateAccount({ email: value, signedIn: true });
+      return;
+    }
     setSent(true);
   };
 
@@ -336,7 +344,9 @@ function AccountStep() {
           <Icon name={mode === 'create' ? 'plus' : 'check'} size={15} stroke={2.4} />
           {mode === 'create' ? 'Créer mon compte' : 'Se connecter'}
         </button>
-        <p className="small muted">Pas de mot de passe à retenir : Warmup vous envoie un lien de connexion par e-mail.</p>
+        <p className="small muted">{data.demo
+          ? 'Pas de mot de passe à retenir : Warmup vous envoie un lien de connexion par e-mail.'
+          : 'Pas de mot de passe. Pour l\'instant, votre compte est enregistré sur ce PC uniquement ; la vérification par e-mail et la synchronisation entre PC arriveront avec le service en ligne de Warmup.'}</p>
         <p className="ob-switch">
           {mode === 'create' ? 'Vous avez déjà un compte ?' : 'Pas encore de compte ?'}
           <button type="button" className="btn" onClick={() => { setMode(mode === 'create' ? 'signin' : 'create'); setError(''); }}>{mode === 'create' ? 'Se connecter' : 'Créer un compte'}</button>
@@ -381,7 +391,7 @@ function PcStep({ done, onDone }: { done: boolean; onDone(): void }) {
       </div>
       {shown >= parts.length && (
         <p className="muted" aria-live="polite">
-          {warn === 0 ? 'Tout est bien réglé.' : `${warn} points peuvent être améliorés. Warmup vous les expliquera dans Diagnostic, rien ne presse.`} <span className="small">Exemple de résultat : la vraie analyse arrive avec la version Windows.</span>
+          {warn === 0 ? 'Tout est bien réglé.' : `${warn} points peuvent être améliorés. Warmup vous les expliquera dans Diagnostic, rien ne presse.`} {data.demo && <span className="small">Exemple de résultat : dans la version vierge, c'est votre vrai matériel qui est lu.</span>}
         </p>
       )}
     </>

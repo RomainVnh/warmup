@@ -3,13 +3,15 @@ import path from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 
-// La règle de sécurité du contenu n'est ajoutée qu'à la version finale :
+// La règle de sécurité du contenu n'est ajoutée qu'à la version finale.
+// Seule adresse extérieure autorisée : les visuels officiels de Steam, pour les jeux que le catalogue ne connaît pas.
+// Précision :
 // en développement, le rechargement à chaud de React a besoin de scripts en ligne.
 const csp = (): Plugin => ({
   name: 'warmup-csp',
   apply: 'build',
   transformIndexHtml(html) {
-    const rule = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'";
+    const rule = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://shared.akamai.steamstatic.com; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'";
     return html.replace('<head>', `<head>\n    <meta http-equiv="Content-Security-Policy" content="${rule}">`);
   }
 });

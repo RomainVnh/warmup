@@ -39,7 +39,7 @@ export function ProfilePage() {
     .sort((a, b) => a.rarity - b.rarity)
     .slice(0, 5);
   const recent = [...games].filter((g) => g.hours > 0).sort((a, b) => a.recentRank - b.recentRank).slice(0, 3);
-  const maxWeek = Math.max(...data.week.hours);
+  const maxWeek = Math.max(0.1, ...data.week.hours);
   const top = byHours.slice(0, 5);
 
   const save = (event: FormEvent) => {
@@ -74,7 +74,7 @@ export function ProfilePage() {
         <div className="row" style={{ gap: 24, alignItems: 'flex-end' }}>
           <UserAvatar name={displayName} image={profileCard.avatar} className="xl" />
           <div>
-            <span className="eyebrow">{profile.since}</span>
+            {profile.since && <span className="eyebrow">{profile.since}</span>}
             <h1 className="title">{displayName}</h1>
             <p className="sub" style={{ color: 'var(--text-2)' }}>{profileCard.tagline || 'Ajoutez une phrase pour vous présenter.'}</p>
             <div className="row" style={{ marginTop: 14 }}>
@@ -146,7 +146,7 @@ export function ProfilePage() {
       <div className="stats">
         <Stat value={hours.toLocaleString('fr-FR')} unit="h" label="Temps de jeu total" />
         <Stat value={games.length} label="Jeux dans la bibliothèque" />
-        <Stat value={achievements} label="Succès obtenus" />
+        {data.demo && <Stat value={achievements} label="Succès obtenus" />}
         {profile.stats.map((s) => <Stat key={s.label} value={s.big} label={s.label} />)}
       </div>
 
@@ -158,7 +158,8 @@ export function ProfilePage() {
           </div>
           <div className="showcase">
             {showcase.map((g) => {
-              const { done, total } = g.achievements;
+              const { done } = g.achievements;
+              const total = data.demo ? g.achievements.total : 0;
               return (
                 <a key={g.id} className="showcase-item" href={`#/game/${g.id}`}>
                   <GameArt game={g} kind="art" lazy />
@@ -175,7 +176,7 @@ export function ProfilePage() {
       )}
 
       <div className="split even section">
-        <section>
+        {data.demo && <section>
           <h2 className="h2" style={{ marginBottom: 8 }}>Mes succès les plus rares</h2>
           {rarest.length === 0 && <p className="muted">Aucun succès obtenu pour l'instant.</p>}
           {rarest.map((a) => (
@@ -191,14 +192,14 @@ export function ProfilePage() {
               </div>
             </a>
           ))}
-        </section>
+        </section>}
         <section>
           <h2 className="h2" style={{ marginBottom: 20 }}>Mes habitudes</h2>
           <span className="eyebrow" style={{ marginBottom: 12 }}>Temps de jeu par plateforme</span>
           {platforms.map(([label, value]) => (
             <div key={label} className="bar-row">
               <span>{label}</span>
-              <div className="meter"><i style={{ width: `${(value / platforms[0][1]) * 100}%` }} /></div>
+              <div className="meter"><i style={{ width: `${(value / (platforms[0][1] || 1)) * 100}%` }} /></div>
               <span className="muted">{value.toLocaleString('fr-FR')} h</span>
             </div>
           ))}
@@ -217,6 +218,7 @@ export function ProfilePage() {
       <div className="split even section">
         <section>
           <h2 className="h2" style={{ marginBottom: 8 }}>En ce moment</h2>
+          {recent.length === 0 && <p className="muted" style={{ paddingTop: 12 }}>Aucune partie pour l'instant. Lancez un jeu depuis Warmup : ses heures et ses bilans apparaîtront ici.</p>}
           {recent.map((g) => (
             <a key={g.id} className="list-row" href={`#/game/${g.id}`} style={{ gap: 16 }}>
               <span className="thumb-sq"><GameArt game={g} kind="cover" lazy className="fill" /></span>
@@ -230,6 +232,7 @@ export function ProfilePage() {
         </section>
         <section>
           <h2 className="h2" style={{ marginBottom: 8 }}>Mes jeux les plus joués</h2>
+          {top.length === 0 && <p className="muted" style={{ paddingTop: 12 }}>Votre bibliothèque est vide pour l'instant.</p>}
           {top.map((g, i) => (
             <a key={g.id} className="list-row" href={`#/game/${g.id}`} style={{ gap: 16 }}>
               <span className="index">{String(i + 1).padStart(2, '0')}</span>
@@ -245,7 +248,7 @@ export function ProfilePage() {
       </div>
 
       <div className="split section">
-        <section>
+        {data.demo && <section>
           <h2 className="h2">Comptes liés</h2>
           <p className="small muted" style={{ margin: '6px 0 10px' }}>Chaque compte passe par la connexion officielle de sa plateforme. Warmup ne voit et ne conserve aucun mot de passe.</p>
           {profile.accounts.map((a) => (
@@ -261,7 +264,7 @@ export function ProfilePage() {
               </button>
             </div>
           ))}
-        </section>
+        </section>}
         <aside className="aside">
           <section>
             <h2 className="h2">Mon PC</h2>

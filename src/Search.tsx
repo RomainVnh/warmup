@@ -12,6 +12,7 @@ const PAGES: { label: string; href: string; icon: IconName }[] = [
   { label: 'Mods', href: '#/mods', icon: 'layers' },
   { label: 'Bilans de parties', href: '#/reports', icon: 'history' },
   { label: 'Diagnostic du PC', href: '#/diagnostic', icon: 'pulse' },
+  { label: 'Journal des corrections', href: '#/journal', icon: 'history' },
   { label: 'Coach, l\'assistant', href: '#/assistant', icon: 'chat' },
   { label: 'Réglages', href: '#/settings', icon: 'gear' },
   { label: 'Profil', href: '#/profile', icon: 'user' }
@@ -49,11 +50,11 @@ export function GlobalSearch() {
       .sort((a, b) => Number(fold(b.title).startsWith(q)) - Number(fold(a.title).startsWith(q)) || a.recentRank - b.recentRank)
       .slice(0, 5)
       .map((g): Result => ({ key: `game-${g.id}`, group: 'Jeux', label: g.title, detail: installed.has(g.id) ? g.genre : `${g.genre} · non installé`, href: `#/game/${g.id}`, game: g }));
-    const achievements = q.length < 3 ? [] : data.games
+    const achievements = q.length < 3 || !data.demo ? [] : data.games
       .flatMap((g) => g.achievements.list.filter((a) => !(a.hidden && !a.when) && has(a.name)).map((a): Result => ({ key: `ach-${g.id}-${a.name}`, group: 'Succès', label: a.name, detail: `${g.title} · ${a.when ? 'obtenu' : 'pas encore obtenu'}`, href: `#/game/${g.id}?tab=succes`, image: a.icon })))
       .slice(0, 4);
     const settings = SETTING_GROUPS.flatMap((group) => group.rows.filter((row) => has(row.label) || has(row.text)).map((row): Result => ({ key: `set-${row.key}`, group: 'Réglages', label: row.label, detail: group.title, href: '#/settings', icon: 'gear' }))).slice(0, 3);
-    const pages = PAGES.filter((p) => has(p.label)).map((p): Result => ({ key: `page-${p.href}`, group: 'Pages', label: p.label, detail: 'Ouvrir la page', href: p.href, icon: p.icon })).slice(0, 3);
+    const pages = PAGES.filter((p) => (data.demo || !['#/downloads', '#/friends', '#/mods'].includes(p.href)) && has(p.label)).map((p): Result => ({ key: `page-${p.href}`, group: 'Pages', label: p.label, detail: 'Ouvrir la page', href: p.href, icon: p.icon })).slice(0, 3);
     const guides = data.guides.filter((g) => has(g.title)).map((g): Result => ({ key: `guide-${g.id}`, group: 'Guides', label: g.title, detail: `${g.duration} · ${g.level}`, href: `#/guide/${g.id}`, icon: 'check' }));
     return [...games, ...achievements, ...settings, ...pages, ...guides];
   }, [query, data, installed]);

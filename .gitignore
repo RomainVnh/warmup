@@ -5,7 +5,12 @@ dist-electron
 .env.*
 *.log
 .DS_Store
-installateurs
+
+# Installateurs : trop lourds pour le dépôt (GitHub refuse plus de 100 Mo par fichier).
+# Ils sont publiés dans les Releases ; seul le fichier qui y renvoie est versionné.
+installateurs/*
+!installateurs/LISEZ-MOI.md
+
 
 # Doublons créés par iCloud (« nom 2.jpg », « dossier 2 »)
 * [0-9]

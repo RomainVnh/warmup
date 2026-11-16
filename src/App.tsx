@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { cleanAllGameOptions, cleanGameOptions, defaultGameOptions, cleanAccount, cleanCollections, cleanProfileCard, defaultProfileCard, defaultSettings, type Account, type Collection, type GameOptions, type Download, type Game, type Notice, type ProfileCard, type Settings, type Snapshot } from '../shared/types';
+import { cleanAllGameOptions, cleanGameOptions, defaultGameOptions, cleanAccount, cleanCollections, cleanProfileCard, defaultProfileCard, defaultSettings, type Account, type Collection, type GameOptions, type JournalEntry, type Download, type Game, type Notice, type ProfileCard, type Settings, type Snapshot } from '../shared/types';
 import { api, demo } from './api';
 import { AppContext, type AppState } from './context';
 import { LaunchOverlay, type LaunchState } from './LaunchOverlay';
 import { GameArt, Icon, Logo, UserAvatar, type IconName } from './ui';
 import { Home } from './screens/Home';
+import { Journal } from './screens/Journal';
 import { Library } from './screens/Library';
 import { GamePage } from './screens/GamePage';
 import { Mods } from './screens/Mods';
@@ -58,6 +59,8 @@ export function App() {
   const [notices, setNotices] = useState<Notice[]>([]);
   const [account, setAccount] = useState<Account | null>(null);
   const [gameOptions, setGameOptions] = useState<Record<string, GameOptions>>({});
+  const [journal, setJournal] = useState<JournalEntry[]>([]);
+  const loadedOnce = useRef(false);
   const [online, setOnline] = useState(() => demo !== 'hors-ligne' && navigator.onLine);
   const cancelLaunch = useRef<(() => void) | null>(null);
   const mainRef = useRef<HTMLElement>(null);
@@ -68,22 +71,43 @@ export function App() {
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
 
+  // Charge la bibliothèque. Version vierge : elle est relue sur le PC à chaque appel (jeux installés, heures, parties).
+  const reload = useCallback(async (reset = false) => {
+    if (reset) loadedOnce.current = false;
+    const [snap, entries] = await Promise.all([api.getSnapshot(), api.getJournal().catch(() => [])]);
+    setData(snap);
+    setJournal(entries);
+    setInstalled(new Set(snap.games.filter((g) => g.installed).map((g) => g.id)));
+    if (loadedOnce.current) return;
+    // Seulement à l'ouverture : ce que le joueur a changé depuis (favoris, notifications lues) ne doit pas être écrasé.
+    loadedOnce.current = true;
+    setFavorites(new Set(snap.games.filter((g) => g.favorite).map((g) => g.id)));
+    setDownloads(snap.downloads.items);
+    setNotices(snap.notices);
+  }, []);
+
   useEffect(() => {
-    // Le matériel lu sur le PC remplace l'analyse d'exemple ; dans le navigateur, l'exemple reste.
-    void Promise.all([api.getSnapshot(), api.getPcReport().catch(() => null)]).then(([snap, pc]) => {
-      setData(pc && !pc.example ? { ...snap, pc: { ...snap.pc, parts: pc.parts, issues: pc.issues } } : snap);
-      setFavorites(new Set(snap.games.filter((g) => g.favorite).map((g) => g.id)));
-      setInstalled(new Set(snap.games.filter((g) => g.installed).map((g) => g.id)));
-      setDownloads(snap.downloads.items);
-      setNotices(snap.notices);
-    });
+    void reload();
     void api.getSettings().then(setSettings);
     void api.getProfileCard().then(setProfileCard);
     void api.getCollections().then(setCollections);
     void api.getAccount().then(setAccount);
     void api.getGameOptions().then(setGameOptions).catch(() => undefined);
     return () => cancelLaunch.current?.();
-  }, []);
+  }, [reload]);
+
+  // Version vierge : la bibliothèque est relue quand on revient sur Warmup (après une partie, par exemple), et chaque minute.
+  const live = data ? !data.demo && Boolean(window.warmup) : false;
+  useEffect(() => {
+    if (!live) return;
+    const refresh = () => void reload(false);
+    window.addEventListener('focus', refresh);
+    const timer = setInterval(refresh, 60_000);
+    return () => {
+      window.removeEventListener('focus', refresh);
+      clearInterval(timer);
+    };
+  }, [live, reload]);
 
   // Connexion internet : suivie en direct. Sans elle, les jeux installés se lancent toujours.
   useEffect(() => {
@@ -122,12 +146,35 @@ export function App() {
 
   const updateAccount = useCallback((patch: Partial<Account>) => {
     setAccount((current) => (current ? cleanAccount(patch, current) : current));
-    void api.setAccount(patch).then(setAccount);
-  }, []);
+    void api.setAccount(patch).then((next) => {
+      setAccount(next);
+      // Changer de compte peut changer ce qui est affiché (le compte admin garde la version de test) : tout est relu.
+      if ('email' in patch || 'signedIn' in patch) {
+        void reload(true);
+        void api.getCollections().then(setCollections);
+      }
+    });
+  }, [reload]);
 
   const saveCollections = useCallback((next: Collection[]) => {
     setCollections(cleanCollections(next));
     void api.setCollections(next).then(setCollections);
+  }, []);
+
+  // Ajout à la main : la partie système ouvre le sélecteur de fichiers ; l'interface ne transmet aucun chemin.
+  const addGame = useCallback(async () => {
+    try {
+      const result = await api.addGame();
+      if (result.ok) await reload();
+      setToast({ text: result.message, link: result.gameId ? { label: 'Ouvrir la fiche', href: `#/game/${result.gameId}` } : undefined });
+      if (result.ok && result.gameId) window.location.hash = `#/game/${result.gameId}`;
+    } catch {
+      setToast({ text: 'Le jeu n\'a pas pu être ajouté. Réessayez dans un instant.' });
+    }
+  }, [reload]);
+
+  const undoFix = useCallback((id: string) => {
+    void api.undoFix(id).then(setJournal);
   }, []);
 
   const updateGameOptions = useCallback((gameId: string, patch: Partial<GameOptions>) => {
@@ -139,6 +186,7 @@ export function App() {
   const uninstall = useCallback(async (game: Game) => {
     try {
       const result = await api.uninstallGame(game.id);
+      void api.getJournal().then(setJournal).catch(() => undefined);
       if (result.ok && result.simulated) {
         setInstalled((current) => {
           const next = new Set(current);
@@ -279,8 +327,8 @@ export function App() {
 
   const displayName = profileCard.name || data?.profile.name || 'Joueur';
   const state = useMemo<AppState | null>(
-    () => (data && account ? { data, account, updateAccount, settings, updateSettings, play, profileCard, updateProfileCard, displayName, installed, downloads, install, setDownloadPaused, removeDownload, retryDownload, online, collections, saveCollections, notices, markNoticesRead, favorites, toggleFavorite, gameOptions, updateGameOptions, uninstall, notify } : null),
-    [data, account, updateAccount, settings, updateSettings, play, profileCard, updateProfileCard, displayName, installed, downloads, install, setDownloadPaused, removeDownload, retryDownload, online, collections, saveCollections, notices, markNoticesRead, favorites, toggleFavorite, gameOptions, updateGameOptions, uninstall, notify]
+    () => (data && account ? { data, account, updateAccount, settings, updateSettings, play, profileCard, updateProfileCard, displayName, installed, downloads, install, setDownloadPaused, removeDownload, retryDownload, online, collections, saveCollections, notices, markNoticesRead, favorites, toggleFavorite, reload, addGame, journal, undoFix, gameOptions, updateGameOptions, uninstall, notify } : null),
+    [data, account, updateAccount, settings, updateSettings, play, profileCard, updateProfileCard, displayName, installed, downloads, install, setDownloadPaused, removeDownload, retryDownload, online, collections, saveCollections, notices, markNoticesRead, favorites, toggleFavorite, reload, addGame, journal, undoFix, gameOptions, updateGameOptions, uninstall, notify]
   );
 
   if (!state) return <div className="overlay" role="status">Chargement de la bibliothèque</div>;
@@ -300,8 +348,11 @@ export function App() {
   const friends = [...state.data.friends].sort((x, y) => Number(y.online) - Number(x.online));
   const running = downloads.filter((d) => d.state !== 'done').length;
 
+  // Version vierge : les téléchargements, les mods et les amis n'existent pas encore pour de vrai ; leurs pages ne s'affichent pas.
+  const isDemo = state.data.demo;
+  const hidden = !isDemo && ['downloads', 'mods', 'friends'].includes(route.name);
   let screen;
-  switch (route.name) {
+  switch (hidden ? 'home' : route.name) {
     case 'library': screen = <Library key={route.query.toString()} initialQuery={route.query.get('q') ?? ''} />; break;
     case 'game': screen = <GamePage key={route.param} id={route.param} initialTab={route.query.get('tab') ?? ''} />; break;
     case 'mods': screen = <Mods key={route.param} gameId={route.param} />; break;
@@ -313,6 +364,7 @@ export function App() {
     case 'report': screen = <Report key={route.param} id={route.param} />; break;
     case 'assistant': screen = <Assistant />; break;
     case 'settings': screen = <SettingsPage />; break;
+    case 'journal': screen = <Journal />; break;
     case 'profile': screen = <ProfilePage />; break;
     default: screen = <Home />;
   }
@@ -360,23 +412,23 @@ export function App() {
         <div className="content">
           <header className="top">
             <GlobalSearch />
-            <a className={`top-friends${active === 'friends' ? ' active' : ''}`} href="#/friends" title="Voir les amis" aria-label={`Amis : ${friends.filter((f) => f.online).length} en ligne. Ouvrir la page Amis`}>
+            {isDemo && <a className={`top-friends${active === 'friends' ? ' active' : ''}`} href="#/friends" title="Voir les amis" aria-label={`Amis : ${friends.filter((f) => f.online).length} en ligne. Ouvrir la page Amis`}>
               <span className="small muted top-friends-count">{friends.filter((f) => f.online).length} amis en ligne</span>
               <span className="stack-avatars" aria-hidden="true">
                 {friends.slice(0, 6).map((f) => (
                   <span key={f.name} className={`avatar${f.online ? ' on' : ' off'}`}>{f.name[0]}</span>
                 ))}
               </span>
-            </a>
-            <span className="top-sep" aria-hidden="true" />
-            <a href="#/downloads" title="Téléchargements" className={`top-icon${active === 'downloads' ? ' active' : ''}`} aria-label={running ? `Téléchargements, ${running} en cours ou en attente` : 'Téléchargements'} aria-current={active === 'downloads' ? 'page' : undefined}>
+            </a>}
+            {isDemo && <span className="top-sep" aria-hidden="true" />}
+            {isDemo && <a href="#/downloads" title="Téléchargements" className={`top-icon${active === 'downloads' ? ' active' : ''}`} aria-label={running ? `Téléchargements, ${running} en cours ou en attente` : 'Téléchargements'} aria-current={active === 'downloads' ? 'page' : undefined}>
               <Icon name="download" size={16} />
               {running > 0 && <span className="top-count">{running}</span>}
-            </a>
+            </a>}
             <NotificationBell />
-            <a href="#/mods" title="Mods" className={`top-icon${active === 'mods' ? ' active' : ''}`} aria-label="Mods" aria-current={active === 'mods' ? 'page' : undefined}><Icon name="layers" size={16} /></a>
+            {isDemo && <a href="#/mods" title="Mods" className={`top-icon${active === 'mods' ? ' active' : ''}`} aria-label="Mods" aria-current={active === 'mods' ? 'page' : undefined}><Icon name="layers" size={16} /></a>}
             <a href="#/assistant" title="Coach, l'assistant" className={`top-icon${active === 'assistant' ? ' active' : ''}`} aria-label="Coach, l'assistant" aria-current={active === 'assistant' ? 'page' : undefined}><Icon name="chat" size={16} /></a>
-            <a href="#/diagnostic" title="Diagnostic du PC" className={`top-icon${active === 'diagnostic' ? ' active' : ''}`} aria-label={pcIssues > 0 ? `Diagnostic du PC, ${pcIssues} points à améliorer` : 'Diagnostic du PC'} aria-current={active === 'diagnostic' ? 'page' : undefined}>
+            <a href="#/diagnostic" title="Diagnostic du PC" className={`top-icon${active === 'diagnostic' ? ' active' : ''}`} aria-label={pcIssues > 0 ? `Diagnostic du PC, ${pcIssues} point${pcIssues > 1 ? 's' : ''} à améliorer` : 'Diagnostic du PC'} aria-current={active === 'diagnostic' ? 'page' : undefined}>
               <Icon name="pulse" size={16} />
               {pcIssues > 0 && <span className="top-flag"><Icon name="warn" size={12} stroke={2.4} /></span>}
             </a>

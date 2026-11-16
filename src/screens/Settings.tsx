@@ -27,8 +27,13 @@ export const SETTING_GROUPS: { title: string; rows: { key: keyof Settings; label
   }
 ];
 
+/** Réglages qui agissent déjà pour de vrai sur ce PC. */
+const REAL_SETTINGS: (keyof Settings)[] = ['launchWindow', 'startWithWindows'];
+
 export function SettingsPage() {
-  const { settings, updateSettings, account, updateAccount } = useApp();
+  const { settings, updateSettings, account, updateAccount, data } = useApp();
+  // Version vierge : seuls les réglages qui ont déjà un effet réel sont proposés.
+  const groups = data.demo ? SETTING_GROUPS : SETTING_GROUPS.map((group) => ({ ...group, rows: group.rows.filter((row) => REAL_SETTINGS.includes(row.key)) })).filter((group) => group.rows.length > 0);
   return (
     <div className="page">
       <Ambient />
@@ -39,7 +44,7 @@ export function SettingsPage() {
         </div>
       </div>
       <div className="settings">
-        {SETTING_GROUPS.map((group) => (
+        {groups.map((group) => (
           <Fragment key={group.title}>
             <h2 className="h2">{group.title}</h2>
             <div className="group">
@@ -60,7 +65,7 @@ export function SettingsPage() {
           <div className="list-row" style={{ flexWrap: 'nowrap', gap: 24 }}>
             <div className="grow">
               <div className="strong">{account.email}</div>
-              <div className="small muted" style={{ marginTop: 2 }}>{account.signedIn ? 'Connecté par lien e-mail, sans mot de passe.' : 'Un compte garde vos réglages et vos collections d\'un PC à l\'autre.'}</div>
+              <div className="small muted" style={{ marginTop: 2 }}>{account.signedIn ? (data.demo ? 'Connecté par lien e-mail, sans mot de passe.' : 'Compte enregistré sur ce PC, sans mot de passe.') : 'Un compte garde vos réglages et vos collections d\'un PC à l\'autre.'}</div>
             </div>
             <button type="button" className="btn" onClick={() => { openAccountStep(); updateAccount({ email: '', signedIn: false }); }}>Se déconnecter</button>
           </div>
@@ -72,16 +77,18 @@ export function SettingsPage() {
             <button type="button" className="btn" onClick={() => updateAccount({ onboarded: false })}>Relancer</button>
           </div>
         </div>
-        <h2 className="h2">Plateformes</h2>
-        <div className="group">
+        {data.demo && <h2 className="h2">Plateformes</h2>}
+        {data.demo && <div className="group">
           <LinkStep linked={account.linked} onChange={(linked) => updateAccount({ linked })} />
           <p className="small muted" style={{ paddingTop: 12 }}>La connexion se fait sur la page officielle de chaque plateforme : Warmup ne voit jamais votre mot de passe. Version de démonstration, aucune page ne s'ouvre encore.</p>
-        </div>
+        </div>}
         <h2 className="h2">Jeux installés</h2>
         <div className="group"><Detection /></div>
         <h2 className="h2">À propos</h2>
         <div className="group">
-          <p className="muted" style={{ paddingTop: 16 }}>Warmup 0.2.0, version de développement. Les jeux sont réels ; les mesures, heures et incidents affichés sont des données d'exemple.</p>
+          <p className="muted" style={{ paddingTop: 16 }}>{data.demo
+            ? 'Warmup 0.3.0, version de test. Les jeux sont réels ; les mesures, heures et incidents affichés sont des données d\'exemple.'
+            : 'Warmup 0.3.0. Tout ce qui est affiché est lu sur ce PC : jeux installés, matériel, heures de jeu et parties mesurées par Warmup.'}</p>
         </div>
       </div>
     </div>
@@ -92,6 +99,7 @@ export function SettingsPage() {
 function Detection() {
   const [report, setReport] = useState<DetectionReport | null>(null);
   const [busy, setBusy] = useState(false);
+  const { reload } = useApp();
   const [failed, setFailed] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
 
@@ -108,6 +116,7 @@ function Detection() {
     setFailed(false);
     try {
       setReport(await api.detectGames());
+      void reload(); // version vierge : la bibliothèque suit ce qui vient d'être trouvé
     } catch {
       setFailed(true);
     } finally {

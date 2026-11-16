@@ -9,7 +9,8 @@ import { GameArt, Icon, Segmented, Toggle } from './ui';
 // Rien ne touche au jeu lui-même : Warmup passe par la plateforme ou par le système.
 
 export function GameSettings({ game, onClose }: { game: Game; onClose(): void }) {
-  const { gameOptions, updateGameOptions, settings, installed, install, uninstall, notify } = useApp();
+  const { gameOptions, updateGameOptions, settings, installed, install, uninstall, notify, reload } = useApp();
+  const [title, setTitle] = useState(game.title);
   const options = gameOptions[game.id] ?? defaultGameOptions;
   const isInstalled = installed.has(game.id);
   const [args, setArgs] = useState(options.args);
@@ -63,6 +64,21 @@ export function GameSettings({ game, onClose }: { game: Game; onClose(): void })
     setBusy(false);
     setConfirming(false);
     notify(message);
+  };
+
+  // Jeu ajouté à la main : on peut le renommer ou le retirer de la bibliothèque. Ses fichiers ne sont jamais touchés.
+  const rename = async () => {
+    const result = await api.renameGame(game.id, title);
+    notify(result.message);
+    if (result.ok) await reload();
+  };
+  const remove = async () => {
+    const result = await api.removeGame(game.id);
+    notify(result.message);
+    if (!result.ok) return;
+    onClose();
+    window.location.hash = '#/library';
+    await reload();
   };
 
   const platform = files?.source ?? game.source;
@@ -146,6 +162,26 @@ export function GameSettings({ game, onClose }: { game: Game; onClose(): void })
             </div>
           </section>
 
+          {game.manual && (
+            <section className="gs-section" aria-labelledby="gs-manual">
+              <h3 id="gs-manual" className="h2">Jeu ajouté à la main</h3>
+              <div className="gs-row gs-column">
+                <label className="strong" htmlFor="gs-title-input">Nom du jeu</label>
+                <div className="row" style={{ gap: 10, flexWrap: 'nowrap', marginTop: 8 }}>
+                  <span className="field grow"><input id="gs-title-input" type="text" value={title} maxLength={80} onChange={(event) => setTitle(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && void rename()} /></span>
+                  <button type="button" className="btn" disabled={!title.trim() || title.trim() === game.title} onClick={() => void rename()}>Renommer</button>
+                </div>
+              </div>
+              <div className="gs-row">
+                <div className="grow">
+                  <div className="strong">Retirer de la bibliothèque</div>
+                  <div className="small muted">Le jeu disparaît de Warmup. Ses fichiers restent sur le PC, et vous pourrez l'ajouter de nouveau.</div>
+                </div>
+                <button type="button" className="btn" onClick={() => void remove()}>Retirer</button>
+              </div>
+            </section>
+          )}
+
           <section className="gs-section" aria-labelledby="gs-files">
             <h3 id="gs-files" className="h2">Fichiers du jeu</h3>
             {!isInstalled ? (
@@ -165,24 +201,24 @@ export function GameSettings({ game, onClose }: { game: Game; onClose(): void })
                   </div>
                   <button type="button" className="btn" disabled={busy || !files?.found} onClick={() => run(() => api.openGameFolder(game.id))}><Icon name="folder" size={14} />Ouvrir le dossier</button>
                 </div>
-                <div className="gs-row">
+                {!game.manual && <div className="gs-row">
                   <div className="grow">
                     <div className="strong">Vérifier les fichiers</div>
                     <div className="small muted">{files?.canVerify ? `${platform} compare les fichiers du jeu à l'original et retélécharge ceux qui manquent ou sont abîmés.` : `La vérification se fait depuis ${platform}.`}</div>
                   </div>
                   <button type="button" className="btn" disabled={busy || !files?.canVerify} onClick={() => run(() => api.verifyGameFiles(game.id))}><Icon name="refresh" size={14} />Vérifier</button>
-                </div>
+                </div>}
                 <div className="gs-row">
                   <div className="grow">
                     <div className="strong">Place sur le disque</div>
-                    <div className="small muted">{files?.sizeGb ?? game.sizeGb} Go{game.modCount ? `, dont ${game.modCount} mods installés` : ''}.</div>
+                    <div className="small muted">{(files?.sizeGb ?? game.sizeGb) ? `${files?.sizeGb ?? game.sizeGb} Go${game.modCount ? `, dont ${game.modCount} mods installés` : ''}.` : 'Taille inconnue.'}</div>
                   </div>
                 </div>
               </>
             )}
           </section>
 
-          {isInstalled && (
+          {isInstalled && !game.manual && (
             <section className="gs-section" aria-labelledby="gs-uninstall">
               <h3 id="gs-uninstall" className="h2">Désinstaller</h3>
               {!confirming ? (

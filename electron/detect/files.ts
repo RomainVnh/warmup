@@ -6,10 +6,10 @@ import path from 'node:path';
 const MAX_FILE_BYTES = 2 * 1024 * 1024;
 
 /** Lit un fichier texte de 2 Mo au plus. Renvoie null s'il est absent, trop gros ou illisible. */
-export async function readText(file: string): Promise<string | null> {
+export async function readText(file: string, maxBytes = MAX_FILE_BYTES): Promise<string | null> {
   try {
     const stat = await fs.stat(file);
-    if (!stat.isFile() || stat.size > MAX_FILE_BYTES) return null;
+    if (!stat.isFile() || stat.size > maxBytes) return null;
     return await fs.readFile(file, 'utf8');
   } catch {
     return null;
@@ -22,6 +22,15 @@ export async function listFiles(dir: string, max = 3000): Promise<string[]> {
     return (await fs.readdir(dir)).slice(0, max);
   } catch {
     return [];
+  }
+}
+
+/** Date de dernière modification d'un fichier, en millisecondes ; 0 s'il est absent. */
+export async function modifiedAt(file: string): Promise<number> {
+  try {
+    return (await fs.stat(file)).mtimeMs;
+  } catch {
+    return 0;
   }
 }
 

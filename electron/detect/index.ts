@@ -108,7 +108,7 @@ export async function detectAll(library: { id: string; title: string }[], ctx: D
     .map((game) => ({ ...game, libraryId: matchLibrary(game.title, library) }))
     .sort((a, b) => a.title.localeCompare(b.title, 'fr'));
   // L'interface reçoit tout sauf la manière de lancer : chemins de programmes et arguments restent ici.
-  const games: DetectedGame[] = found.map(({ launch, uninstall: _u, verify: _v, ...game }) => ({ ...game, canLaunch: launch !== null && game.complete }));
+  const games: DetectedGame[] = found.map(({ launch, uninstall: _u, verify: _v, minutes: _m, lastPlayed: _l, ...game }) => ({ ...game, canLaunch: launch !== null && game.complete }));
   return { report: { example: false, stores: results.map((result) => describe(result, ctx)), games }, found };
 }
 

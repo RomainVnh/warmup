@@ -6,7 +6,7 @@ type Shelf = 'recent' | 'favorites' | 'check';
 const DAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 
 export function Home() {
-  const { data, play, favorites, installed: onDisk } = useApp();
+  const { data, play, favorites, installed: onDisk, addGame } = useApp();
   const [shelf, setShelf] = useState<Shelf>('recent');
 
   const installed = useMemo(() => data.games.filter((g) => onDisk.has(g.id)).sort((a, b) => a.recentRank - b.recentRank), [data.games, onDisk]);
@@ -28,7 +28,8 @@ export function Home() {
   }, [shown.length > 0]);
   const visible = shown.slice(0, columns * 2);
   const hidden = shown.length - visible.length;
-  const maxHours = Math.max(...data.week.hours);
+  const maxHours = Math.max(0.1, ...data.week.hours);
+  const screen = data.pc.parts.find((part) => part.name === 'Écran');
   const lastReport = data.reports[0];
   const reportGame = data.games.find((g) => g.id === lastReport?.gameId);
 
@@ -42,12 +43,12 @@ export function Home() {
           title={owned.length ? 'Aucun jeu installé pour l\'instant' : 'Bienvenue dans Warmup'}
           actions={<>
             <a className="btn btn-primary" href="#/settings/jeux"><Icon name="search" size={14} />Rechercher les jeux installés</a>
-            <a className="btn" href="#/library">Ouvrir la bibliothèque</a>
+            <button type="button" className="btn" onClick={() => void addGame()}><Icon name="plus" size={14} />Ajouter un jeu</button>
           </>}
         >
           {owned.length
             ? `Vous possédez ${owned.length} jeu${owned.length > 1 ? 'x' : ''} qui ne ${owned.length > 1 ? 'sont' : 'est'} pas encore sur ce PC. Installez-en un, ou laissez Warmup retrouver ceux qui sont déjà installés.`
-            : 'Warmup n\'a encore trouvé aucun jeu sur ce PC. Lancez la recherche : il lit la liste de vos plateformes, sans rien modifier.'}
+            : 'Warmup n\'a encore trouvé aucun jeu sur ce PC. Lancez la recherche : il lit la liste de vos plateformes, sans rien modifier. Vous pouvez aussi ajouter un jeu à la main.'}
         </EmptyState>
         {owned.length > 0 && (
           <section className="section" aria-label="Jeux à installer">
@@ -66,15 +67,17 @@ export function Home() {
         <div className="hero-shade" />
         <div className="hero-body">
           <div className="hero-text">
-            <span className="kicker">Reprendre votre partie · joué {featured.lastPlayed.toLowerCase()}</span>
+            <span className="kicker">{featured.lastPlayed === 'Jamais lancé' ? 'Prêt à jouer' : `Reprendre votre partie · joué ${featured.lastPlayed.toLowerCase()}`}</span>
             <GameLogo game={featured} as="h1" />
             <Pill status={featured.status}>
               {featured.status === 'ok' ? `Prêt à lancer · ${featured.checks.length} points vérifiés` : featured.statusLabel}
             </Pill>
             <p style={{ color: 'var(--text-2)', fontSize: 14 }}>
-              {featured.changes[0]
-                ? `Un seul changement depuis votre dernière partie réussie : ${featured.changes[0].title.toLowerCase()}. ${featured.changes[0].text}`
-                : 'Rien n\'a changé depuis votre dernière partie réussie.'}
+              {!data.demo
+                ? featured.summary
+                : featured.changes[0]
+                  ? `Un seul changement depuis votre dernière partie réussie : ${featured.changes[0].title.toLowerCase()}. ${featured.changes[0].text}`
+                  : 'Rien n\'a changé depuis votre dernière partie réussie.'}
             </p>
             <div className="row" style={{ gap: 12 }}>
               <PlayButton game={featured} onPlay={play} />
@@ -84,9 +87,9 @@ export function Home() {
           <dl className="facts">
             <div>
               <dt>{featured.region ? 'Ping' : 'Sur le disque'}</dt>
-              <dd>{featured.region ? '18 ms' : `${featured.sizeGb} Go`}</dd>
+              <dd>{featured.region ? '18 ms' : featured.sizeGb ? `${featured.sizeGb} Go` : 'Inconnue'}</dd>
             </div>
-            <div><dt>Écran</dt><dd>144 Hz actifs</dd></div>
+            <div><dt>Écran</dt><dd>{data.demo ? '144 Hz actifs' : screen?.big ?? 'Non lu'}</dd></div>
             <div><dt>Dernière partie</dt><dd>{featured.sessions[0]?.length ?? 'Aucune'}</dd></div>
             <div><dt>Plateforme</dt><dd>{sourceLabel(featured.source)}</dd></div>
           </dl>

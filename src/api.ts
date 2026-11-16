@@ -1,6 +1,7 @@
 import { snapshot } from '../shared/mock-data';
 import { simulateLaunch } from '../shared/launch-sim';
-import { cleanAllGameOptions, cleanGameOptions, defaultGameOptions, cleanAccount, cleanCollections, cleanProfileCard, defaultAccount, defaultProfileCard, defaultSettings, settingKeys, type Account, type Collection, type DetectionReport, type GameActionResult, type GameOptions, type WarmupApi, type ProfileCard, type Settings } from '../shared/types';
+import { buildRealSnapshot } from '../shared/real-data';
+import { cleanAllGameOptions, cleanGameOptions, defaultGameOptions, cleanAccount, cleanCollections, cleanProfileCard, defaultAccount, defaultProfileCard, defaultSettings, settingKeys, type Account, type Collection, type DetectionReport, type GameActionResult, type GameOptions, type JournalEntry, type WarmupApi, type ProfileCard, type Settings } from '../shared/types';
 
 declare global {
   interface Window {
@@ -102,7 +103,8 @@ const exampleDetection: DetectionReport = {
   ]
 };
 
-// Modes de démonstration, dans le navigateur seulement : ?demo=vide (aucun jeu) ou ?demo=hors-ligne (pas de connexion).
+// Modes de démonstration, dans le navigateur seulement : ?demo=vide (aucun jeu), ?demo=hors-ligne (pas de connexion)
+// ou ?demo=vierge (aperçu de la version vierge, sans aucune donnée d'exemple).
 export const demo = ((): string => {
   try {
     return new URLSearchParams(window.location.search).get('demo') ?? '';
@@ -111,9 +113,14 @@ export const demo = ((): string => {
   }
 })();
 
+// Journal d'exemple : « Annuler » y marque seulement la ligne, rien n'est modifié sur le PC.
+let demoJournal: JournalEntry[] = demo === 'vierge' ? [] : snapshot.pc.log.map((entry, index) => ({ id: `exemple-${index}`, at: Date.now() - (index + 1) * 5_400_000, title: entry.what, detail: entry.detail, undoable: true, undone: false }));
+
+const testOnly: GameActionResult = { ok: false, simulated: true, message: 'Dans la version de test, la bibliothèque est un exemple. L\'ajout d\'un jeu fonctionne dans la version vierge, une fois l\'application installée.' };
+
 // Version « navigateur » : sert à travailler l'interface sans Electron (npm run dev).
 const webApi: WarmupApi = {
-  getSnapshot: async () => (demo === 'vide' ? { ...snapshot, games: [], downloads: { ...snapshot.downloads, items: [] }, notices: snapshot.notices.filter((n) => !n.gameId), reports: [], mods: [] } : snapshot),
+  getSnapshot: async () => (demo === 'vierge' ? buildRealSnapshot({ games: [], parts: snapshot.pc.parts, sessions: [], journal: [], now: Date.now() }) : demo === 'vide' ? { ...snapshot, games: [], downloads: { ...snapshot.downloads, items: [] }, notices: snapshot.notices.filter((n) => !n.gameId), reports: [], mods: [] } : snapshot),
   getSettings: async () => loadSettings(),
   setSettings: async (patch) => {
     const next = { ...loadSettings(), ...patch };
@@ -154,6 +161,11 @@ const webApi: WarmupApi = {
     }
     return next;
   },
+  addGame: async () => testOnly,
+  renameGame: async () => testOnly,
+  removeGame: async () => testOnly,
+  getJournal: async () => demoJournal,
+  undoFix: async (id) => (demoJournal = demoJournal.map((entry) => (entry.id === id && entry.undoable ? { ...entry, undone: true } : entry))),
   getGameOptions: async () => loadGameOptions(),
   setGameOptions: async (gameId, patch) => {
     const all = loadGameOptions();

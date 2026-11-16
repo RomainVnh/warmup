@@ -936,3 +936,8 @@ a.list-row .link { flex: none; }
 .gs { width: min(920px, 100%); }
 .gs-body { padding: 8px 32px 28px; }
 .gs-head { padding: 22px 24px 20px 32px; }
+
+/* Journal : une ligne annulée est atténuée. */
+.journal li.undone .strong { color: var(--muted); text-decoration: line-through; }
+.journal li.undone::before { border-color: var(--muted); box-shadow: none; }
+.journal a { text-decoration: underline; }
