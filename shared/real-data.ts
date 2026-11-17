@@ -140,11 +140,12 @@ function checks(input: RealGameInput, parts: PcPart[]): { checks: Check[]; steps
   const files: Check = input.complete
     ? { name: 'Fichiers du jeu', value: 'Présents sur le disque', status: 'ok' }
     : { name: 'Fichiers du jeu', value: 'Installation ou mise à jour inachevée', status: 'warn' };
-  const wanted = ['Écran', 'Carte graphique', 'Mémoire vive', 'Stockage'];
+  // Matériel, puis réglages de Windows lus avant de jouer (sous Windows seulement).
+  const wanted = ['Écran', 'Fréquence de l\'écran', 'Carte graphique', 'Mémoire vive', 'Stockage', 'Arrière-plan', 'Mode Jeu', 'Mises à jour Windows'];
   const hardware = wanted.map((name) => parts.find((p) => p.name === name)).filter((p): p is PcPart => Boolean(p));
   return {
     checks: [files, ...hardware.map((p): Check => ({ name: p.name, value: `${p.big}. ${p.text}`, status: p.status }))],
-    steps: [{ name: files.name, value: files.status === 'ok' ? 'Présents' : 'Incomplets', fixed: false }, ...hardware.map((p): LaunchStep => ({ name: p.name, value: p.big, fixed: false }))]
+    steps: [{ name: files.name, value: files.status === 'ok' ? 'Présents' : 'Incomplets', fixed: false, warn: files.status === 'warn' }, ...hardware.map((p): LaunchStep => ({ name: p.name, value: p.big, fixed: false, warn: p.status === 'warn' }))]
   };
 }
 

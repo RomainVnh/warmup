@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process';
+import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import type { SessionRecord } from '../shared/types';
@@ -171,6 +172,7 @@ let fpsTool: string | null = null;
 export const setFpsTool = (file: string | null): void => {
   fpsTool = file;
 };
+export const hasFpsTool = (): boolean => Boolean(fpsTool && fs.existsSync(fpsTool));
 
 function finish(): void {
   if (!watch) return;

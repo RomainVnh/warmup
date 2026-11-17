@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { app, screen } from 'electron';
-import type { PcPart, PcReport } from '../shared/types';
+import type { OpenTarget, PcIssue, PcPart, PcReport } from '../shared/types';
 
 // Lecture du matériel, en lecture seule : écran, carte graphique, processeur, mémoire, disque, système.
 // Sous Windows, deux interrogations fixes de Windows (aucune commande libre) complètent ce que donne Electron.
@@ -73,6 +73,14 @@ export function mainGpu(gpus: WindowsInfo['gpu']): WindowsInfo['gpu'][number] | 
   return real.find((g) => /nvidia|geforce|rtx|radeon|amd|arc/i.test(g.Name ?? '')) ?? real[0];
 }
 
+/** Fabricant d'une carte graphique, d'après son nom, et la page officielle de ses pilotes. */
+export function driverVendor(name: string): { name: string; target: OpenTarget } | null {
+  if (/nvidia|geforce|quadro|rtx|gtx/i.test(name)) return { name: 'NVIDIA', target: 'pilote-nvidia' };
+  if (/amd|radeon/i.test(name)) return { name: 'AMD', target: 'pilote-amd' };
+  if (/intel|arc|iris|uhd/i.test(name)) return { name: 'Intel', target: 'pilote-intel' };
+  return null;
+}
+
 export async function readPc(): Promise<PcReport> {
   const [win, macModel] = await Promise.all([windowsInfo(), macGpu()]);
   const parts: PcPart[] = [];
@@ -104,17 +112,30 @@ export async function readPc(): Promise<PcReport> {
   }
   const driverAt = driverTime(gpu?.DriverDate);
   const driverDays = driverAt ? Math.floor((Date.now() - driverAt) / 86_400_000) : null;
-  const oldDriver = driverDays !== null && driverDays > 365;
+  // Les fabricants publient un pilote chaque mois ou presque : au-delà de six mois, les jeux récents en profitent.
+  const oldDriver = driverDays !== null && driverDays > 180;
   parts.push({
     name: 'Carte graphique',
     big: gpuName || 'Non reconnue',
     text: driverDays === null
       ? 'Pilote fourni par le système.'
       : oldDriver
-        ? `Pilote installé il y a plus d'un an (version ${gpu?.DriverVersion ?? 'inconnue'}). Une version récente améliore souvent les jeux.`
+        ? `Pilote installé il y a ${driverDays > 365 ? 'plus d\'un an' : `${Math.floor(driverDays / 30)} mois`} (version ${gpu?.DriverVersion ?? 'inconnue'}). Une version récente améliore souvent les jeux.`
         : `Pilote ${gpu?.DriverVersion ?? ''} installé il y a ${driverDays < 1 ? 'moins d\'un jour' : plural(driverDays, 'jour', 'jours')}.`,
     status: oldDriver ? 'warn' : 'ok'
   });
+
+  const issues: PcIssue[] = [];
+  const vendor = driverVendor(gpuName);
+  if (oldDriver && vendor) {
+    issues.push({
+      title: 'Mettre à jour le pilote graphique',
+      why: `Le pilote de votre ${gpuName} date de ${driverDays > 365 ? 'plus d\'un an' : `${Math.floor(driverDays / 30)} mois`}. Les fabricants corrigent chaque mois des plantages et des baisses d'images par seconde dans les jeux récents.`,
+      change: `Warmup ouvre la page officielle de ${vendor.name}, qui reconnaît votre carte et propose le bon pilote. L'installation se fait par le programme du fabricant ; Warmup ne télécharge rien lui-même.`,
+      action: `Ouvrir la page de ${vendor.name}`,
+      open: vendor.target
+    });
+  }
 
   // Processeur
   const cpus = os.cpus();
@@ -160,5 +181,5 @@ export async function readPc(): Promise<PcReport> {
   parts.push({ name: 'Système', big: system, text: win.os?.BuildNumber ? `Version ${win.os.BuildNumber}.` : 'Version reconnue.', status: 'ok' });
 
   const time = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-  return { example: false, checkedAt: `Contrôlé à ${time}`, parts, issues: [] };
+  return { example: false, checkedAt: `Contrôlé à ${time}`, parts, issues };
 }

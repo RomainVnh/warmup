@@ -67,10 +67,10 @@ export function LaunchOverlay({ launch, onSkip, onDisable, onQuit }: Props) {
             const current = i === step && phase === 'run';
             return (
               <div key={s.name} className={`launch-row${done ? ' done' : ''}`}>
-                {current ? <span className="spinner" /> : <Icon name={done ? 'check' : 'dot'} size={14} stroke={2.8} />}
+                {current ? <span className="spinner" /> : <Icon name={done ? (s.warn && !s.fixed ? 'warn' : 'check') : 'dot'} size={14} stroke={2.8} />}
                 <span className="name">{s.name}</span>
                 <span className="value">{done ? s.value : current ? 'Vérification en cours' : 'En attente'}</span>
-                {done && <span className={`tag${s.fixed ? ' fixed' : ''}`}>{s.fixed ? 'Corrigé' : 'Bon'}</span>}
+                {done && <span className={`tag${s.fixed ? ' fixed' : s.warn ? ' warn' : ''}`}>{s.fixed ? 'Corrigé' : s.warn ? 'À corriger' : 'Bon'}</span>}
               </div>
             );
           })}

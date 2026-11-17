@@ -83,7 +83,9 @@ export function Diagnostic() {
               <p className="small" style={{ marginTop: 12, color: 'var(--text-2)' }}><span className="muted">Ce qui sera modifié : </span>{issue.change}</p>
             </div>
             <div className="row">
-              {issue.guideId
+              {!data.demo && !issue.guideId && !issue.fix && !issue.open
+                ? null
+                : issue.guideId
                 ? <a className="btn btn-primary" href={`#/guide/${issue.guideId}`}>{issue.action}</a>
                 : <button type="button" className="btn btn-primary" onClick={() => void act(issue)} disabled={busy !== null}>{busy === issue.title ? 'En cours…' : issue.action}</button>}
               <button type="button" className="btn" onClick={() => setIssues((list) => list.filter((x) => x.title !== issue.title))}>Ignorer</button>

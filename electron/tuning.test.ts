@@ -64,3 +64,51 @@ test('fréquence de l\'écran : un écran 144 Hz réglé sur 60 Hz est repéré,
   assert.equal(parseState(JSON.stringify({ display: { hz: 1, rates: [1] } })).display, null);
   assert.deepEqual(parseState(JSON.stringify({ display: { hz: 60, rates: [60, 'x', 5000, 75] } })).display?.rates, [60, 75]);
 });
+
+test('disques : place manquante et jeux sur disque dur alors qu\'un SSD a de la place', async () => {
+  const state = parseState(JSON.stringify({
+    procs: [],
+    disks: [
+      { letter: 'C', media: 'SSD', freeGb: 310, sizeGb: 1000 },
+      { letter: 'D', media: 'HDD', freeGb: 12, sizeGb: 2000 },
+      { letter: 'z', media: 'Unspecified', freeGb: 5, sizeGb: 64 }
+    ]
+  }));
+  assert.deepEqual(state.disks.map((d) => [d.letter, d.media]), [['C', 'SSD'], ['D', 'HDD'], ['Z', 'Inconnu']]);
+  const result = evaluate(state, { games: [{ title: 'Elden Ring', folder: 'D:\\SteamLibrary\\steamapps\\common\\ELDEN RING', sizeGb: 60 }], fpsTool: false });
+  const full = result.issues.find((i) => i.open === 'stockage');
+  assert.ok(full);
+  assert.match(full.why, /D: \(12 Go libres\)/); // Z: ne porte ni le système ni un jeu : il n'est pas signalé
+  assert.ok(!full.why.includes('Z:'));
+  const slow = result.issues.find((i) => i.title === 'Déplacer Elden Ring sur le SSD');
+  assert.ok(slow && !slow.fix && !slow.open); // explication seulement : Warmup ne déplace aucun fichier
+  // Plus de place sur le SSD que le jeu n'en demande : rien à proposer.
+  const tight = evaluate(state, { games: [{ title: 'Énorme', folder: 'D:\\Jeux\\Enorme', sizeGb: 400 }], fpsTool: false });
+  assert.ok(!tight.issues.some((i) => i.title.startsWith('Déplacer')));
+});
+
+test('mises à jour Windows et autorisation de mesure des images', () => {
+  const busy = evaluate(parseState(JSON.stringify({ procs: [], updatesDownloading: true, fpsAllowed: false, fpsPending: false, user: 'PC-JEU\\Joueur' })), { games: [], fpsTool: true });
+  assert.ok(busy.issues.some((i) => i.open === 'windows-update'));
+  assert.ok(busy.issues.some((i) => i.fix === 'mesure-fps'));
+  const pending = evaluate(parseState(JSON.stringify({ procs: [], fpsAllowed: false, fpsPending: true })), { games: [], fpsTool: true });
+  assert.equal(pending.parts.find((p) => p.name === 'Mesure des images')?.big, 'Reconnexion nécessaire');
+  assert.ok(!pending.issues.some((i) => i.fix === 'mesure-fps'));
+  // Sans l'outil de mesure livré, rien n'est proposé ; mises à jour inconnues : rien n'est affiché.
+  const none = evaluate(parseState(JSON.stringify({ procs: [], fpsAllowed: false })), { games: [], fpsTool: false });
+  assert.ok(!none.parts.some((p) => p.name === 'Mesure des images' || p.name === 'Mises à jour Windows'));
+});
+
+test('compte Windows et fabricant du pilote reconnus sans rien laisser passer', async () => {
+  const { validUser } = await import('./tuning');
+  assert.ok(validUser('PC-JEU\\Joueur'));
+  assert.ok(validUser('AzureAD\\Romain Vanhove'));
+  assert.ok(!validUser("PC\\x'; Remove-Item C:\\ -Recurse; '"));
+  assert.ok(!validUser('Joueur'));
+  assert.equal(parseState(JSON.stringify({ user: "PC\\a'b" })).user, null);
+  const { driverVendor } = await import('./hardware');
+  assert.equal(driverVendor('NVIDIA GeForce RTX 4070')?.target, 'pilote-nvidia');
+  assert.equal(driverVendor('AMD Radeon RX 7800 XT')?.target, 'pilote-amd');
+  assert.equal(driverVendor('Intel(R) Arc(TM) A770')?.target, 'pilote-intel');
+  assert.equal(driverVendor('Microsoft Basic Display Adapter'), null);
+});

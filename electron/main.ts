@@ -14,7 +14,7 @@ import { isAdmin } from './admin';
 import { forcedTest } from './mode';
 import { hasSession, loadSession, onlineAdmin, pushData, requestCode, serviceAvailable, signOut, startSteamLink, unlinkSteam, verifyCode } from './online';
 import { readJson, writeJson } from './store';
-import { loadSessions, setFpsTool, stopTracking, trackGame } from './sessions';
+import { hasFpsTool, loadSessions, setFpsTool, stopTracking, trackGame } from './sessions';
 import { simulateLaunch } from '../shared/launch-sim';
 import { cleanFavorites, isEmail, type LoginResult, cleanAccount, cleanAllGameOptions, cleanGameOptions, cleanCollections, defaultGameOptions, splitArgs, cleanProfileCard, defaultAccount, defaultProfileCard, defaultSettings, settingKeys, type Account, type Collection, type FixId, type FixResult, type OpenTarget, type GameActionResult, type GameFiles, type GameOptions, type LaunchEvent, type PcReport, type ProfileCard, type Settings, type Snapshot, type Source } from '../shared/types';
 
@@ -169,7 +169,8 @@ let pcCache: { at: number; report: PcReport } | null = null;
 async function readPcAll(): Promise<PcReport> {
   const [report, state] = await Promise.all([readPc(), process.platform === 'win32' ? readState() : Promise.resolve(null)]);
   if (!state) return report;
-  const tuning = evaluate(state);
+  const games = gamesNow().filter((g) => g.installed && g.location).map((g) => ({ title: g.title, folder: g.location, sizeGb: g.sizeGb }));
+  const tuning = evaluate(state, { games, fpsTool: hasFpsTool() });
   return { ...report, parts: [...report.parts, ...tuning.parts], issues: [...tuning.issues, ...report.issues] };
 }
 

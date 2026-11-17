@@ -1001,3 +1001,4 @@ a.list-row .link { flex: none; }
 .tline-num { display: grid; place-items: center; flex: none; width: 22px; height: 22px; border-radius: 50%; background: var(--warn); color: var(--warn-ink); font: 600 11px var(--mono); }
 .tline-mark.low b { top: 22px; }
 .tline-list .eyebrow { white-space: nowrap; }
+.launch-row .tag.warn { color: var(--warn); }

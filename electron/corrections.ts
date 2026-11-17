@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { FixId, FixResult } from '../shared/types';
 import { logAction, markUndone, registerUndo } from './journal';
-import { DISPLAY_TYPE, HEAVY_APPS, heavyApps, readState, runScript } from './tuning';
+import { DISPLAY_TYPE, HEAVY_APPS, PERF_LOG_USERS, heavyApps, powershellFile, readState, runScript, validUser } from './tuning';
 
 // Corrections réelles. Chacune est une action prédéfinie : expliquée avant (page Diagnostic, réglages),
 // notée dans le journal, et annulable grâce à sa fonction d'annulation. Aucune commande libre, aucun accès au jeu.
@@ -109,6 +109,26 @@ async function setRefresh(hz: number): Promise<boolean> {
   return Number(out.trim()) === hz;
 }
 
+/* ───── Autorisation de mesurer les images par seconde ───── */
+
+/**
+ * Ajoute (ou retire) le compte Windows au groupe « Utilisateurs du journal de performances ».
+ * Windows demande lui-même l'accord du joueur (fenêtre de contrôle de compte). Seul un nom de compte vérifié entre dans la commande.
+ */
+async function setPerfGroup(user: string, add: boolean): Promise<boolean> {
+  if (!validUser(user)) return false;
+  const inner = `${add ? 'Add' : 'Remove'}-LocalGroupMember -SID '${PERF_LOG_USERS}' -Member '${user}' -ErrorAction Stop`;
+  const encoded = Buffer.from(inner, 'utf16le').toString('base64');
+  const out = await runScript([
+    '$ErrorActionPreference = \'Stop\'',
+    'try {',
+    `  $p = Start-Process -FilePath '${powershellFile()}' -Verb RunAs -WindowStyle Hidden -Wait -PassThru -ArgumentList @('-NoProfile', '-NonInteractive', '-EncodedCommand', '${encoded}')`,
+    '  $p.ExitCode',
+    '} catch { 1 }'
+  ].join('\n'), 120_000);
+  return out.trim() === '0';
+}
+
 /* ───── Application depuis le diagnostic ───── */
 
 export async function applyFix(id: FixId): Promise<FixResult> {
@@ -135,6 +155,15 @@ export async function applyFix(id: FixId): Promise<FixResult> {
       logAction({ kind: 'frequence', title: `Écran passé de ${display.hz} à ${best} Hz`, detail: `L'écran principal affiche maintenant jusqu'à ${best} images par seconde. « Annuler » remet ${display.hz} Hz.`, data: String(display.hz) });
       return { ok: true, message: `L'écran est réglé sur ${best} Hz.` };
     }
+    case 'mesure-fps': {
+      const state = await readState();
+      if (state.fpsAllowed) return { ok: false, message: 'La mesure des images par seconde est déjà autorisée.' };
+      if (state.fpsPending) return { ok: false, message: 'L\'autorisation est déjà donnée : reconnectez-vous à Windows pour qu\'elle prenne effet.' };
+      if (!state.user) return { ok: false, message: 'Le compte Windows n\'a pas pu être reconnu. Rien n\'a été modifié.' };
+      if (!(await setPerfGroup(state.user, true))) return { ok: false, message: 'L\'autorisation n\'a pas été donnée (Windows a peut-être demandé votre accord). Rien n\'a été modifié.' };
+      logAction({ kind: 'mesure-fps', title: 'Mesure des images par seconde autorisée', detail: 'Votre compte Windows fait partie du groupe « Utilisateurs du journal de performances ». Effet à la prochaine connexion à Windows. « Annuler » l\'en retire.', data: state.user });
+      return { ok: true, message: 'C\'est autorisé. Déconnectez-vous puis reconnectez-vous à Windows pour que la mesure démarre.' };
+    }
     default:
       return { ok: false, message: 'Cette correction n\'est pas encore disponible.' };
   }
@@ -144,6 +173,7 @@ export async function applyFix(id: FixId): Promise<FixResult> {
 export function registerCorrections(): void {
   registerUndo('programmes', (entry) => relaunch(parsePaths(entry.data)));
   // Valeur d'origine notée dans le journal : 0 (désactivé). Toute autre valeur rétablit le réglage par défaut.
+  registerUndo('mesure-fps', (entry) => setPerfGroup(entry.data ?? '', false));
   registerUndo('frequence', (entry) => setRefresh(Number(entry.data)));
   registerUndo('mode-jeu', (entry) => setGameMode(entry.data === '0' ? '0' : 'absent'));
 }

@@ -31,9 +31,28 @@ export interface TuningState {
   hags: number | null;
   /** Écran principal : fréquence actuelle et fréquences possibles dans la définition actuelle, en Hz. */
   display: { hz: number; rates: number[] } | null;
+  /** Lecteurs : lettre, type de disque (SSD, HDD ou inconnu), place libre et taille en Go. */
+  disks: { letter: string; media: 'SSD' | 'HDD' | 'Inconnu'; freeGb: number; sizeGb: number }[];
+  /** Vrai si Windows télécharge des mises à jour en ce moment ; null si Windows ne le dit pas. */
+  updatesDownloading: boolean | null;
+  /** Mesure des images par seconde : autorisée pour cette session, ou accordée mais en attente d'une reconnexion. */
+  fpsAllowed: boolean | null;
+  fpsPending: boolean;
+  /** Compte Windows en cours (« PC\\Nom »), pour l'autorisation de mesure. */
+  user: string | null;
 }
 
-export const emptyState = (): TuningState => ({ procs: [], gameMode: null, hags: null, display: null });
+export const emptyState = (): TuningState => ({ procs: [], gameMode: null, hags: null, display: null, disks: [], updatesDownloading: null, fpsAllowed: null, fpsPending: false, user: null });
+
+/** Ce que l'évaluation doit savoir de la bibliothèque : où sont les jeux, et si l'outil de mesure est livré. */
+export interface TuningContext {
+  games: { title: string; folder: string; sizeGb: number }[];
+  fpsTool: boolean;
+}
+
+/** Groupe « Utilisateurs du journal de performances » de Windows, désigné par son identifiant fixe (le nom change selon la langue). */
+export const PERF_LOG_USERS = 'S-1-5-32-559';
+export const validUser = (user: unknown): user is string => typeof user === 'string' && /^[\w.\- ]{1,64}\\[\w.\- $]{1,64}$/.test(user);
 
 /**
  * Accès à l'écran principal par l'interface officielle de Windows (EnumDisplaySettings, ChangeDisplaySettingsEx).
@@ -89,6 +108,22 @@ $g = Get-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\GameBar' -Name AutoGame
 $r.gameMode = if ($g) { [int]$g.AutoGameModeEnabled } else { $null }
 $h = Get-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers' -Name HwSchMode
 $r.hags = if ($h) { [int]$h.HwSchMode } else { $null }
+$disks = @()
+foreach ($p in @(Get-Partition | Where-Object { $_.DriveLetter })) {
+  $d = Get-PhysicalDisk | Where-Object { $_.DeviceId -eq [string]$p.DiskNumber } | Select-Object -First 1
+  $v = Get-Volume -DriveLetter $p.DriveLetter
+  if ($v -and $v.Size -gt 0) { $disks += @{ letter = [string]$p.DriveLetter; media = [string]$d.MediaType; freeGb = [math]::Round($v.SizeRemaining / 1GB, 1); sizeGb = [math]::Round($v.Size / 1GB, 1) } }
+}
+$r.disks = $disks
+$do = Get-DeliveryOptimizationStatus
+$r.updatesDownloading = if ($?) { @($do | Where-Object { [string]$_.Status -eq 'Downloading' }).Count -gt 0 } else { $null }
+$id = [Security.Principal.WindowsIdentity]::GetCurrent()
+$sids = @($id.Groups | ForEach-Object { $_.Value })
+$admin = (New-Object Security.Principal.WindowsPrincipal $id).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+$r.fpsAllowed = ($sids -contains '${PERF_LOG_USERS}') -or $admin
+$m = @(Get-LocalGroupMember -SID '${PERF_LOG_USERS}' | Where-Object { $_.Name -eq $id.Name })
+$r.fpsPending = (-not $r.fpsAllowed) -and ($m.Count -gt 0)
+$r.user = $id.Name
 $r | ConvertTo-Json -Compress -Depth 4
 `;
 
@@ -127,6 +162,18 @@ export function parseState(json: string): TuningState {
     const rates = list<unknown>(display.rates).map(hz).filter((v): v is number => v !== null);
     state.display = { hz: hz(display.hz)!, rates: [...new Set(rates)].sort((a, b) => a - b) };
   }
+  state.disks = list<Record<string, unknown>>(raw.disks)
+    .filter((d) => typeof d.letter === 'string' && /^[A-Z]$/i.test(d.letter) && Number(d.sizeGb) > 0)
+    .map((d) => ({
+      letter: String(d.letter).toUpperCase(),
+      media: d.media === 'SSD' || d.media === 'HDD' ? d.media : 'Inconnu',
+      freeGb: Math.max(0, Number(d.freeGb) || 0),
+      sizeGb: Number(d.sizeGb)
+    }));
+  state.updatesDownloading = typeof raw.updatesDownloading === 'boolean' ? raw.updatesDownloading : null;
+  state.fpsAllowed = typeof raw.fpsAllowed === 'boolean' ? raw.fpsAllowed : null;
+  state.fpsPending = raw.fpsPending === true;
+  state.user = validUser(raw.user) ? raw.user : null;
   return state;
 }
 
@@ -151,7 +198,7 @@ export function heavyApps(state: TuningState): { label: string; memMb: number; e
 export interface Tuning { parts: PcPart[]; issues: PcIssue[] }
 
 /** Ce que Warmup conclut de l'état de Windows : une ligne d'état par point, et un point à améliorer quand il y a lieu. */
-export function evaluate(state: TuningState): Tuning {
+export function evaluate(state: TuningState, context: TuningContext = { games: [], fpsTool: false }): Tuning {
   const parts: PcPart[] = [];
   const issues: PcIssue[] = [];
 
@@ -213,6 +260,73 @@ export function evaluate(state: TuningState): Tuning {
     });
   } else if (state.hags === 2) {
     parts.push({ name: 'Planification GPU', big: 'Activée', text: 'La carte graphique organise elle-même ses images.', status: 'ok' });
+  }
+
+  // Disques : de la place pour les mises à jour, et les jeux sur un disque rapide quand il y en a un.
+  const driveOf = (folder: string) => /^([A-Z]):/i.exec(folder)?.[1]?.toUpperCase() ?? null;
+  const system = (process.env.SystemDrive ?? 'C:').slice(0, 1).toUpperCase();
+  const used = new Set([system, ...context.games.map((g) => driveOf(g.folder)).filter((d): d is string => d !== null)]);
+  const full = state.disks.filter((d) => used.has(d.letter) && (d.freeGb < 20 || d.freeGb / d.sizeGb < 0.08));
+  if (full.length) {
+    const names = full.map((d) => `${d.letter}: (${Math.round(d.freeGb)} Go libres)`).join(', ');
+    parts.push({ name: 'Place sur les disques', big: `${full.length > 1 ? `${full.length} disques presque pleins` : `${full[0].letter}: presque plein`}`, text: `${names}. Les mises à jour des jeux et le fichier d'échange de Windows ont besoin de place.`, status: 'warn' });
+    issues.push({
+      title: full.length > 1 ? 'Libérer de la place sur vos disques' : `Libérer de la place sur ${full[0].letter}:`,
+      why: `${names}. Quand un disque est presque plein, les mises à jour des jeux échouent et Windows ralentit, faute de place pour sa mémoire de secours.`,
+      change: 'Warmup ouvre la page « Stockage » des paramètres de Windows : elle montre ce qui prend de la place et propose de vider les fichiers temporaires. Rien n\'est supprimé sans votre accord.',
+      action: 'Ouvrir le stockage de Windows',
+      open: 'stockage'
+    });
+  } else if (state.disks.length) {
+    parts.push({ name: 'Place sur les disques', big: 'Suffisante', text: 'Les disques du système et de vos jeux ont de la place pour les mises à jour.', status: 'ok' });
+  }
+  const ssd = state.disks.filter((d) => d.media === 'SSD');
+  const slow = context.games
+    .map((g) => ({ ...g, disk: state.disks.find((d) => d.letter === driveOf(g.folder)) }))
+    .filter((g) => g.disk?.media === 'HDD' && ssd.some((d) => d.letter !== g.disk!.letter && d.freeGb > g.sizeGb + 20))
+    .sort((a, b) => b.sizeGb - a.sizeGb);
+  if (slow.length) {
+    const target = [...ssd].sort((a, b) => b.freeGb - a.freeGb)[0];
+    const names = slow.slice(0, 3).map((g) => g.title).join(', ') + (slow.length > 3 ? ` et ${slow.length - 3} autre${slow.length > 4 ? 's' : ''}` : '');
+    parts.push({ name: 'Disque des jeux', big: `${slow.length} jeu${slow.length > 1 ? 'x' : ''} sur disque dur`, text: `${names} : sur un disque dur classique, alors que ${target.letter}: est un SSD avec ${Math.round(target.freeGb)} Go libres.`, status: 'warn' });
+    issues.push({
+      title: slow.length > 1 ? 'Déplacer vos jeux sur le SSD' : `Déplacer ${slow[0].title} sur le SSD`,
+      why: `${names} ${slow.length > 1 ? 'sont installés' : 'est installé'} sur un disque dur classique. Sur le SSD ${target.letter}:, les chargements sont souvent deux à trois fois plus rapides, et les saccades dues au chargement des décors disparaissent.`,
+      change: 'Le déplacement se fait par la plateforme du jeu, sans tout retélécharger. Dans Steam : clic droit sur le jeu > Propriétés > Fichiers installés > Déplacer le dossier d\'installation. Warmup ne déplace aucun fichier lui-même.',
+      action: 'Voir comment faire'
+    });
+  }
+
+  // Mises à jour de Windows : un téléchargement en cours prend du débit et du disque pendant la partie.
+  if (state.updatesDownloading === true) {
+    parts.push({ name: 'Mises à jour Windows', big: 'Téléchargement en cours', text: 'Windows télécharge des mises à jour en arrière-plan.', status: 'warn' });
+    issues.push({
+      title: 'Suspendre les mises à jour de Windows pendant le jeu',
+      why: 'Windows télécharge des mises à jour en ce moment. Pendant une partie en ligne, ce téléchargement prend du débit (ping plus haut, saccades) et sollicite le disque.',
+      change: 'Warmup ouvre la page « Windows Update ». Cliquez sur « Suspendre pendant 1 semaine », ou laissez le téléchargement finir avant de jouer. La reprise se fait au même endroit.',
+      action: 'Ouvrir Windows Update',
+      open: 'windows-update'
+    });
+  } else if (state.updatesDownloading === false) {
+    parts.push({ name: 'Mises à jour Windows', big: 'Rien en cours', text: 'Aucun téléchargement de Windows ne gêne le jeu.', status: 'ok' });
+  }
+
+  // Images par seconde : Windows réserve leur mesure aux administrateurs et au groupe « Utilisateurs du journal de performances ».
+  if (context.fpsTool && state.fpsAllowed !== null) {
+    if (state.fpsAllowed) {
+      parts.push({ name: 'Mesure des images', big: 'Autorisée', text: 'Warmup peut mesurer les images par seconde pendant vos parties.', status: 'ok' });
+    } else if (state.fpsPending) {
+      parts.push({ name: 'Mesure des images', big: 'Reconnexion nécessaire', text: 'L\'autorisation est donnée : elle prendra effet à votre prochaine connexion à Windows.', status: 'warn' });
+    } else {
+      parts.push({ name: 'Mesure des images', big: 'Non autorisée', text: 'Windows ne laisse pas encore Warmup mesurer les images par seconde.', status: 'warn' });
+      issues.push({
+        title: 'Autoriser la mesure des images par seconde',
+        why: 'Windows réserve le compteur d\'images aux administrateurs et au groupe « Utilisateurs du journal de performances ». Sans cette autorisation, les bilans n\'ont ni images par seconde ni chutes.',
+        change: 'Warmup ajoute votre compte Windows à ce groupe. Windows vous demande votre accord, puis l\'autorisation prend effet à votre prochaine connexion. Rien n\'est lu dans les jeux. « Annuler » dans le journal retire votre compte du groupe.',
+        action: 'Autoriser la mesure',
+        fix: 'mesure-fps'
+      });
+    }
   }
 
   return { parts, issues };

@@ -28,7 +28,8 @@ export interface FriendStatus extends Friend {
 export interface NewsItem { tag: string; title: string; date: string; text: string; image: string }
 export interface Review { author: string; positive: boolean; hours: number; text: string }
 export interface Session { date: string; length: string; result: string; ok: boolean }
-export interface LaunchStep { name: string; value: string; fixed: boolean }
+/** Contrôle de la fenêtre de lancement. `warn` : point à corriger, signalé sans bloquer le jeu. */
+export interface LaunchStep { name: string; value: string; fixed: boolean; warn?: boolean }
 
 export interface Game {
   id: string;
