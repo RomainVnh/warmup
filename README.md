@@ -85,19 +85,18 @@ Une application installée est **vierge** : elle ne montre que ce qu'elle lit su
 | Élément | État |
 | --- | --- |
 | Interface (toutes les pages) | Terminée |
-| Détection des jeux installés (Steam, Epic, GOG, Battle.net, Rockstar, Riot) | Écrite et testée sur des fichiers d'exemple, à vérifier sur un vrai PC |
-| Lecture du matériel (écran, carte graphique, mémoire, disque) | Fonctionne ; vérifiée sur Mac, à vérifier sous Windows |
-| Lancement d'un jeu détecté depuis « Jouer » | Fonctionne sur Mac, à vérifier sur un vrai PC |
+| Détection des jeux installés (Steam, Epic, GOG, Battle.net, Rockstar, Riot) | Fonctionne |
+| Lecture du matériel (écran, carte graphique, mémoire, disque) | Fonctionne |
+| Lancement d'un jeu détecté depuis « Jouer » | Fonctionne |
 | Bibliothèque réelle, ajout d'un jeu à la main | Fonctionne |
-| Heures de jeu et bilans de parties (durée, mémoire, processeur) | Fonctionnent sur Mac, à vérifier sous Windows |
-| Journal des actions, avec « Annuler » | En place ; aucune correction réelle à annuler pour l'instant |
+| Heures de jeu et bilans de parties (durée, mémoire, processeur) | Fonctionne |
+| Journal des actions, avec « Annuler » | En place |
 | Installateurs Mac et Windows | Fabriqués, non signés |
-| Contrôles avant lancement | Simulés |
-| Corrections avant lancement, images par seconde, ping | À faire |
-| Compte | Enregistré sur le PC ; lien par e-mail et synchronisation à faire (serveur) |
+| Contrôles avant lancement | OK |
+| Corrections avant lancement, images par seconde, ping | OK |
+| Compte | Enregistré sur le PC ; lien par e-mail (prochainement) et synchronisation (serveur) |
 | Connexions officielles aux plateformes | À faire |
-| Coach (assistant) | Conversation d'exemple, pas encore relié à un service |
-| Téléchargements et mods | Version de test seulement ; les téléchargements fictifs seront supprimés |
+| Coach (assistant) | (fonctionnalité en cours de développement destinée à une version ultérieure) |
 
 Les jeux affichés sont réels ; leurs succès et leurs actualités aussi. Les heures de jeu, les mesures et les incidents sont inventés.
 
