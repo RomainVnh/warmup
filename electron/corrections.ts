@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { FixId, FixResult } from '../shared/types';
 import { logAction, markUndone, registerUndo } from './journal';
-import { HEAVY_APPS, heavyApps, readState } from './tuning';
+import { DISPLAY_TYPE, HEAVY_APPS, heavyApps, readState, runScript } from './tuning';
 
 // Corrections réelles. Chacune est une action prédéfinie : expliquée avant (page Diagnostic, réglages),
 // notée dans le journal, et annulable grâce à sa fonction d'annulation. Aucune commande libre, aucun accès au jeu.
@@ -97,6 +97,18 @@ async function setGameMode(value: '0' | '1' | 'absent'): Promise<boolean> {
   return result.ok;
 }
 
+/* ───── Fréquence de l'écran ───── */
+
+/** Règle l'écran principal sur `hz`, à condition que l'écran propose cette fréquence. Renvoie vrai si c'est fait. */
+async function setRefresh(hz: number): Promise<boolean> {
+  if (!Number.isInteger(hz) || hz < 24 || hz > 1000) return false;
+  const display = (await readState()).display;
+  if (!display || !display.rates.includes(hz)) return false;
+  // Seul un nombre entier vérifié entre dans le script.
+  const out = await runScript(`${DISPLAY_TYPE}\n[WarmupDisplay]::Set(${hz}) | Out-Null\n[WarmupDisplay]::Current()`);
+  return Number(out.trim()) === hz;
+}
+
 /* ───── Application depuis le diagnostic ───── */
 
 export async function applyFix(id: FixId): Promise<FixResult> {
@@ -115,6 +127,14 @@ export async function applyFix(id: FixId): Promise<FixResult> {
       logAction({ kind: 'mode-jeu', title: 'Mode Jeu de Windows activé', detail: 'Windows donne la priorité au jeu en cours et ne redémarre plus pendant une partie. « Annuler » le désactive à nouveau.', data: String(before) });
       return { ok: true, message: 'Le mode Jeu est activé.' };
     }
+    case 'frequence': {
+      const display = (await readState()).display;
+      const best = display ? Math.max(...display.rates, display.hz) : 0;
+      if (!display || best <= display.hz) return { ok: false, message: 'L\'écran est déjà réglé sur sa fréquence la plus haute.' };
+      if (!(await setRefresh(best))) return { ok: false, message: 'Windows a refusé la nouvelle fréquence. L\'écran garde son réglage.' };
+      logAction({ kind: 'frequence', title: `Écran passé de ${display.hz} à ${best} Hz`, detail: `L'écran principal affiche maintenant jusqu'à ${best} images par seconde. « Annuler » remet ${display.hz} Hz.`, data: String(display.hz) });
+      return { ok: true, message: `L'écran est réglé sur ${best} Hz.` };
+    }
     default:
       return { ok: false, message: 'Cette correction n\'est pas encore disponible.' };
   }
@@ -124,5 +144,6 @@ export async function applyFix(id: FixId): Promise<FixResult> {
 export function registerCorrections(): void {
   registerUndo('programmes', (entry) => relaunch(parsePaths(entry.data)));
   // Valeur d'origine notée dans le journal : 0 (désactivé). Toute autre valeur rétablit le réglage par défaut.
+  registerUndo('frequence', (entry) => setRefresh(Number(entry.data)));
   registerUndo('mode-jeu', (entry) => setGameMode(entry.data === '0' ? '0' : 'absent'));
 }

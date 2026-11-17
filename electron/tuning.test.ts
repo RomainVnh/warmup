@@ -50,3 +50,17 @@ test('mode Jeu et planification GPU : lus dans le registre, corrigés ou expliqu
   // Valeurs inattendues écartées.
   assert.equal(parseState(JSON.stringify({ gameMode: 7, hags: 'oui' })).gameMode, null);
 });
+
+test('fréquence de l\'écran : un écran 144 Hz réglé sur 60 Hz est repéré, sinon rien', () => {
+  const low = evaluate(parseState(JSON.stringify({ procs: [], display: { hz: 60, rates: [60, 120, 144, 59] } })));
+  const part = low.parts.find((p) => p.name === 'Fréquence de l\'écran');
+  assert.equal(part?.status, 'warn');
+  assert.equal(part?.big, '60 Hz sur 144 possibles');
+  assert.equal(low.issues.find((i) => i.fix === 'frequence')?.action, 'Passer à 144 Hz');
+  const good = evaluate(parseState(JSON.stringify({ procs: [], display: { hz: 144, rates: [60, 144] } })));
+  assert.equal(good.parts.find((p) => p.name === 'Fréquence de l\'écran')?.status, 'ok');
+  // 59 et 60 Hz : la même chose, rien à proposer ; valeurs absurdes écartées.
+  assert.equal(evaluate(parseState(JSON.stringify({ display: { hz: 59, rates: [59, 60] } }))).issues.length, 0);
+  assert.equal(parseState(JSON.stringify({ display: { hz: 1, rates: [1] } })).display, null);
+  assert.deepEqual(parseState(JSON.stringify({ display: { hz: 60, rates: [60, 'x', 5000, 75] } })).display?.rates, [60, 75]);
+});

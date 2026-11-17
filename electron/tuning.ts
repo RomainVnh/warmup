@@ -29,9 +29,52 @@ export interface TuningState {
   gameMode: number | null;
   /** Planification GPU à accélération matérielle : 2 activée, 1 désactivée, null non proposée par la carte. */
   hags: number | null;
+  /** Écran principal : fréquence actuelle et fréquences possibles dans la définition actuelle, en Hz. */
+  display: { hz: number; rates: number[] } | null;
 }
 
-export const emptyState = (): TuningState => ({ procs: [], gameMode: null, hags: null });
+export const emptyState = (): TuningState => ({ procs: [], gameMode: null, hags: null, display: null });
+
+/**
+ * Accès à l'écran principal par l'interface officielle de Windows (EnumDisplaySettings, ChangeDisplaySettingsEx).
+ * Code fixe : il lit les modes d'affichage et ne change que la fréquence, dans la définition déjà choisie.
+ */
+export const DISPLAY_TYPE = `
+Add-Type -TypeDefinition @'
+using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+public static class WarmupDisplay {
+  [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+  public struct DEVMODE {
+    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)] public string dmDeviceName;
+    public short dmSpecVersion; public short dmDriverVersion; public short dmSize; public short dmDriverExtra; public int dmFields;
+    public int dmPositionX; public int dmPositionY; public int dmDisplayOrientation; public int dmDisplayFixedOutput;
+    public short dmColor; public short dmDuplex; public short dmYResolution; public short dmTTOption; public short dmCollate;
+    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)] public string dmFormName;
+    public short dmLogPixels; public int dmBitsPerPel; public int dmPelsWidth; public int dmPelsHeight; public int dmDisplayFlags; public int dmDisplayFrequency;
+    public int dmICMMethod; public int dmICMIntent; public int dmMediaType; public int dmDitherType; public int dmReserved1; public int dmReserved2; public int dmPanningWidth; public int dmPanningHeight;
+  }
+  [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern bool EnumDisplaySettings(string device, int mode, ref DEVMODE dm);
+  [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int ChangeDisplaySettingsEx(string device, ref DEVMODE dm, IntPtr hwnd, int flags, IntPtr param);
+  static DEVMODE Blank() { DEVMODE dm = new DEVMODE(); dm.dmSize = (short)Marshal.SizeOf(typeof(DEVMODE)); return dm; }
+  public static int Current() { DEVMODE dm = Blank(); EnumDisplaySettings(null, -1, ref dm); return dm.dmDisplayFrequency; }
+  public static int[] Rates() {
+    DEVMODE now = Blank(); EnumDisplaySettings(null, -1, ref now);
+    List<int> list = new List<int>(); DEVMODE dm = Blank();
+    for (int i = 0; EnumDisplaySettings(null, i, ref dm); i++) {
+      if (dm.dmPelsWidth == now.dmPelsWidth && dm.dmPelsHeight == now.dmPelsHeight && dm.dmBitsPerPel == now.dmBitsPerPel && dm.dmDisplayFrequency > 1 && !list.Contains(dm.dmDisplayFrequency)) list.Add(dm.dmDisplayFrequency);
+    }
+    return list.ToArray();
+  }
+  public static int Set(int hz) {
+    DEVMODE dm = Blank(); EnumDisplaySettings(null, -1, ref dm);
+    dm.dmDisplayFrequency = hz; dm.dmFields = 0x400000;
+    return ChangeDisplaySettingsEx(null, ref dm, IntPtr.Zero, 0x01, IntPtr.Zero);
+  }
+}
+'@
+`;
 
 // Script fixe, envoyé encodé à PowerShell (aucune valeur venue de l'extérieur n'y entre).
 const STATE_SCRIPT = `
@@ -39,6 +82,9 @@ $ErrorActionPreference = 'SilentlyContinue'
 $r = [ordered]@{}
 $names = @(${HEAVY_EXE.map((exe) => `'${exe}'`).join(', ')})
 $r.procs = @(Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -and ($names -contains $_.Name.ToLower()) } | ForEach-Object { @{ name = $_.Name.ToLower(); path = $_.ExecutablePath; memMb = [math]::Round($_.WorkingSetSize / 1MB) } })
+${DISPLAY_TYPE}
+$hz = [WarmupDisplay]::Current()
+if ($hz -gt 1) { $r.display = @{ hz = $hz; rates = @([WarmupDisplay]::Rates()) } } else { $r.display = $null }
 $g = Get-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\GameBar' -Name AutoGameModeEnabled
 $r.gameMode = if ($g) { [int]$g.AutoGameModeEnabled } else { $null }
 $h = Get-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers' -Name HwSchMode
@@ -75,6 +121,12 @@ export function parseState(json: string): TuningState {
   const flag = (value: unknown, allowed: number[]) => (typeof value === 'number' && allowed.includes(value) ? value : null);
   state.gameMode = flag(raw.gameMode, [0, 1]);
   state.hags = flag(raw.hags, [1, 2]);
+  const display = raw.display as { hz?: unknown; rates?: unknown } | null | undefined;
+  const hz = (value: unknown) => (typeof value === 'number' && Number.isInteger(value) && value >= 24 && value <= 1000 ? value : null);
+  if (display && hz(display.hz)) {
+    const rates = list<unknown>(display.rates).map(hz).filter((v): v is number => v !== null);
+    state.display = { hz: hz(display.hz)!, rates: [...new Set(rates)].sort((a, b) => a - b) };
+  }
   return state;
 }
 
@@ -131,6 +183,21 @@ export function evaluate(state: TuningState): Tuning {
     });
   } else {
     parts.push({ name: 'Mode Jeu', big: 'Activé', text: 'Windows donne la priorité au jeu en cours.', status: 'ok' });
+  }
+
+  // Fréquence de l'écran : un écran 144 Hz laissé sur 60 Hz est très courant (après un pilote neuf, un nouveau câble…).
+  const best = state.display ? Math.max(state.display.hz, ...state.display.rates) : 0;
+  if (state.display && best >= state.display.hz + 10) {
+    parts.push({ name: 'Fréquence de l\'écran', big: `${state.display.hz} Hz sur ${best} possibles`, text: `L'écran peut afficher ${best} images par seconde, mais Windows le règle sur ${state.display.hz}.`, status: 'warn' });
+    issues.push({
+      title: `Passer l'écran à ${best} Hz`,
+      why: `Votre écran sait afficher ${best} images par seconde, mais il est réglé sur ${state.display.hz}. Au-delà de ${state.display.hz} images par seconde, le jeu en calcule plus que l'écran n'en montre : tout paraît moins fluide qu'il ne l'est.`,
+      change: `Warmup règle l'écran principal sur ${best} Hz, dans la même définition (comme dans Paramètres > Affichage > Affichage avancé). L'écran peut s'éteindre une seconde. « Annuler » dans le journal remet ${state.display.hz} Hz.`,
+      action: `Passer à ${best} Hz`,
+      fix: 'frequence'
+    });
+  } else if (state.display) {
+    parts.push({ name: 'Fréquence de l\'écran', big: `${state.display.hz} Hz`, text: 'L\'écran est réglé sur sa fréquence la plus haute.', status: 'ok' });
   }
 
   // Planification GPU : la carte graphique gère elle-même sa file d'images. Le réglage demande un redémarrage
