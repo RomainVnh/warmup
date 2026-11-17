@@ -195,7 +195,9 @@ function withTimeline(report: Report, game: Game): Report {
   start.setHours(21, 0, 0, 0);
   const clock = (at: number) => new Date(at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
   const timeline = reportTimeline({ step: 60, fps, ping: game.region ? ping : [], temp }, start.getTime(), clock);
-  return timeline ? { ...report, timeline } : report;
+  // Partie ratée : ce qui avait changé depuis la dernière partie réussie (les changements d'exemple du jeu).
+  const changes = report.ok ? undefined : game.changes;
+  return { ...report, ...(timeline ? { timeline } : {}), ...(changes ? { changes } : {}) };
 }
 
 /* ───── Mods ───── */

@@ -35,12 +35,15 @@ export function readManifest(text: string, library: string): FoundGame | null {
   // installdir est un simple nom de dossier : on refuse tout ce qui chercherait à en sortir.
   if (dir.includes('..') || /[\\/:]/.test(dir)) return null;
   const flags = Number(vdfText(state, 'stateflags'));
+  const build = vdfText(state, 'buildid');
   return {
     source: 'Steam',
     storeId: id,
     title,
     folder: path.join(library, 'steamapps', 'common', dir),
     sizeGb: bytesToGb(vdfText(state, 'sizeondisk')),
+    // Numéro de build : il change à chaque mise à jour du jeu par Steam.
+    ...(/^\d{1,12}$/.test(build) ? { version: `build ${build}` } : {}),
     // Le bit 4 signifie « entièrement installé » ; sinon, le jeu est en cours de téléchargement ou de mise à jour.
     complete: Number.isFinite(flags) && (flags & 4) === 4,
     launch: { kind: 'url', url: `steam://rungameid/${id}` },

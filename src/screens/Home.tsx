@@ -76,10 +76,10 @@ export function Home() {
               {featured.status === 'ok' ? `Prêt à lancer · ${featured.checks.length} points vérifiés` : featured.statusLabel}
             </Pill>
             <p style={{ color: 'var(--text-2)', fontSize: 14 }}>
-              {!data.demo
+              {!data.demo && !featured.changes.length
                 ? featured.summary
                 : featured.changes[0]
-                  ? `Un seul changement depuis votre dernière partie réussie : ${featured.changes[0].title.toLowerCase()}. ${featured.changes[0].text}`
+                  ? `${featured.changes.length > 1 ? `${featured.changes.length} changements depuis votre dernière partie réussie, dont` : 'Un seul changement depuis votre dernière partie réussie :'} ${featured.changes[0].title.toLowerCase()}. ${featured.changes[0].text}`
                   : 'Rien n\'a changé depuis votre dernière partie réussie.'}
             </p>
             <div className="row" style={{ gap: 12 }}>

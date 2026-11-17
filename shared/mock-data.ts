@@ -320,6 +320,11 @@ export const snapshot: Snapshot = {
   },
   mods: modSets,
   reports: buildReports(games),
+  // Effet mesuré des corrections d'exemple (lignes « exemple-<n> » du journal d'exemple).
+  effects: {
+    'exemple-0': { headline: '+22 % d\'images par seconde depuis', lines: ['Images par seconde : 104 → 127 (+22 %)', 'Moments les plus lents : 61 → 78 images par seconde', 'Chutes : 3,4 → 1,1 par heure de jeu'], better: true, basis: '9 parties avant, 6 après, sur 3 jeux' },
+    'exemple-3': { headline: 'Parties plus régulières depuis', lines: ['Images par seconde : 88 → 90 (+2 %)', 'Chutes : 2,8 → 0,9 par heure de jeu', 'Parties avec un incident : 25 % → 0 %'], better: true, basis: '4 parties avant, 3 après, sur 1 jeu' }
+  },
   friends,
   notices,
   guides,

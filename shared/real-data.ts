@@ -4,6 +4,8 @@ import { guides } from './mock-extra';
 import { snapshot as catalogue } from './mock-data';
 import { gameNews } from './news-data';
 import { reportTimeline } from './timeline';
+import { fixEffects } from './effects';
+import { diffEnv, firstSeen, gameEnv, lastGood, toChanges, type Env } from './env';
 import type { Check, FriendStatus, Game, JournalEntry, LaunchStep, PcIssue, PcPart, Report, Session, SessionRecord, Snapshot, Source } from './types';
 
 // Version vierge : la bibliothèque n'est faite que de ce qui est lu sur ce PC.
@@ -22,6 +24,8 @@ export interface RealGameInput {
   /** Numéro du jeu chez Steam, pour retrouver ses visuels officiels. */
   steamId: string | null;
   manual: boolean;
+  /** Version installée (build Steam), pour repérer une mise à jour du jeu. */
+  version?: string | null;
   /** Minutes jouées et dernière partie, d'après la plateforme (Steam) ; null si elle ne les donne pas. */
   platformMinutes: number | null;
   platformLastPlayed: number | null;
@@ -90,9 +94,23 @@ const MARK_TEXT: Record<'fps' | 'ping' | 'temp', string> = {
   temp: 'Au-delà de 87 °C, la carte graphique ralentit pour se protéger.'
 };
 
-function report(s: SessionRecord, title: string, now: number): Report {
+/** Partie réussie : plus d'une minute, sans incident. C'est la référence pour dire ce qui a changé. */
+const isGood = (s: SessionRecord) => !tooShort(s) && !incident(s);
+
+/** Ce qui a changé entre la dernière partie réussie d'un jeu et `env` (une partie ratée, ou le PC aujourd'hui). */
+function changesSince(sessions: SessionRecord[], gameId: string, env: Env | undefined, before: number, now: number): Report['changes'] {
+  const good = env ? lastGood(sessions, gameId, isGood, before) : undefined;
+  if (!good?.env || !env) return undefined;
+  return toChanges(diffEnv(good.env, env), (change) => {
+    const seen = firstSeen(sessions, gameId, good.start, change);
+    return seen && seen.start < before ? ago(seen.start, now) : 'Depuis peu';
+  });
+}
+
+function report(s: SessionRecord, title: string, now: number, sessions: SessionRecord[] = []): Report {
   const short = tooShort(s);
   const issue = incident(s);
+  const changes = short || issue ? changesSince(sessions, s.gameId, s.env, s.start, now) : undefined;
   const peak = s.peakMemMb ? `${(s.peakMemMb / 1024).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Go` : 'Non mesurée';
   const timeline = reportTimeline(s.timeline, s.start, clock);
   const values = s.samples.length > 1 ? s.samples.map((mb) => Math.round(mb / 102.4) / 10) : [0, 0];
@@ -126,6 +144,7 @@ function report(s: SessionRecord, title: string, now: number): Report {
       axis: [clock(s.start), clock(s.end)]
     },
     timeline: timeline ?? undefined,
+    changes,
     events: [
       { time: clock(s.start), title: 'Jeu lancé', text: 'Warmup a vu le jeu démarrer.', ok: true },
       ...(timeline?.marks ?? []).map((m) => ({ time: m.time, title: m.text, text: MARK_TEXT[m.kind], ok: false })),
@@ -150,7 +169,7 @@ function checks(input: RealGameInput, parts: PcPart[]): { checks: Check[]; steps
 }
 
 
-function game(input: RealGameInput, parts: PcPart[], sessions: SessionRecord[], rank: number, now: number): Game {
+function game(input: RealGameInput, parts: PcPart[], sessions: SessionRecord[], rank: number, now: number, facts?: Env, args?: string): Game {
   const known = input.catalogueId ? catalogue.games.find((g) => g.id === input.catalogueId) : undefined;
   const mine = sessions.filter((s) => s.gameId === input.id).sort((a, b) => b.start - a.start);
   const trackedMinutes = mine.reduce((sum, s) => sum + s.seconds, 0) / 60;
@@ -195,7 +214,8 @@ function game(input: RealGameInput, parts: PcPart[], sessions: SessionRecord[], 
     news: known ? (gameNews[known.id] ?? []).map((n) => ({ ...n, image: '' })) : [],
     reviews: { percent: 0, count: 0, label: '', list: [] },
     checks: real.checks,
-    changes: [],
+    // Depuis la dernière partie réussie : ce qui diffère dans le PC d'aujourd'hui et dans le jeu installé.
+    changes: (facts && Object.keys(facts).length ? changesSince(sessions, input.id, gameEnv(facts, { version: input.version, sizeGb: input.sizeGb, args }), Infinity, now) : undefined) ?? [],
     sessions: mine.slice(0, 8).map((s): Session => ({ date: ago(s.start, now), length: duration(s.seconds), result: tooShort(s) ? 'Fermé presque aussitôt' : incident(s)?.headline ?? 'Sans incident repéré', ok: !tooShort(s) && !incident(s) })),
     launch: {
       steps: real.steps,
@@ -212,6 +232,9 @@ export interface RealInput {
   parts: PcPart[];
   /** Points à améliorer, avec la correction ou la page officielle qui va avec. */
   issues?: PcIssue[];
+  /** Photo du PC aujourd'hui, et arguments de lancement de chaque jeu : pour dire ce qui a changé depuis la dernière partie réussie. */
+  facts?: Env;
+  args?: Record<string, string>;
   sessions: SessionRecord[];
   journal: JournalEntry[];
   now: number;
@@ -219,11 +242,11 @@ export interface RealInput {
   steam?: { name: string; friends: FriendStatus[]; achieved: Record<string, Record<string, number>> };
 }
 
-export function buildRealSnapshot({ games, parts, issues = [], sessions, journal, now, steam }: RealInput): Snapshot {
+export function buildRealSnapshot({ games, parts, issues = [], facts, args = {}, sessions, journal, now, steam }: RealInput): Snapshot {
   // Jeux récents : la dernière partie d'abord, puis l'ordre alphabétique.
   const lastOf = (g: RealGameInput) => Math.max(g.platformLastPlayed ?? 0, ...sessions.filter((s) => s.gameId === g.id).map((s) => s.end), 0);
   const ordered = [...games].sort((a, b) => lastOf(b) - lastOf(a) || a.title.localeCompare(b.title, 'fr'));
-  const list = ordered.map((g, index) => game(g, parts, sessions, index + 1, now)).map((g) => {
+  const list = ordered.map((g, index) => game(g, parts, sessions, index + 1, now, facts, args[g.id])).map((g) => {
     // Succès réellement obtenus, d'après Steam : rapprochés par leur nom.
     const got = steam?.achieved[g.id];
     if (!got) return g;
@@ -254,8 +277,9 @@ export function buildRealSnapshot({ games, parts, issues = [], sessions, journal
     },
     pc: { parts, issues, servers: [], log: [] },
     mods: [],
-    reports: [...sessions].filter((s) => list.some((g) => g.id === s.gameId)).sort((a, b) => b.start - a.start).slice(0, 200).map((s) => report(s, titleOf(s.gameId), now)),
+    reports: [...sessions].filter((s) => list.some((g) => g.id === s.gameId)).sort((a, b) => b.start - a.start).slice(0, 200).map((s) => report(s, titleOf(s.gameId), now, sessions)),
     friends: steam?.friends ?? [],
+    effects: fixEffects(journal, sessions.filter((s) => list.some((g) => g.id === s.gameId)), (s) => tooShort(s) || Boolean(incident(s))),
     notices: [],
     guides,
     profile: { name: 'Joueur', since: '', accounts: [], pc: parts.map((p) => ({ label: p.name, value: p.big })), stats: [] }

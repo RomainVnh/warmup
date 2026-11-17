@@ -1,6 +1,21 @@
-import type { JournalEntry } from '../../shared/types';
+import type { FixEffect, JournalEntry } from '../../shared/types';
 import { findGame, useApp } from '../context';
 import { EmptyState, Icon, Stat } from '../ui';
+
+/** Effet mesuré d'une correction : ce que les parties suivantes ont montré. */
+export function Effect({ effect }: { effect: FixEffect }) {
+  const tone = effect.better === true ? 'ok' : effect.better === false ? 'warn' : 'plain';
+  return (
+    <div className={`effect effect-${tone}`}>
+      <div className="effect-head">
+        {effect.better !== null && <Icon name={effect.better ? 'up' : 'warn'} size={14} stroke={2.4} />}
+        <span className="strong">{effect.headline}</span>
+      </div>
+      {effect.lines.length > 0 && <ul>{effect.lines.map((line) => <li key={line}>{line}</li>)}</ul>}
+      <div className="small muted">{effect.basis}</div>
+    </div>
+  );
+}
 
 const when = (at: number) => new Date(at).toLocaleString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
 
@@ -49,6 +64,7 @@ export function Journal() {
                       <div className="grow">
                         <div className="strong">{entry.title}</div>
                         <div className="muted" style={{ marginTop: 4, maxWidth: '70ch' }}>{entry.detail}</div>
+                        {!entry.undone && data.effects?.[entry.id] && <Effect effect={data.effects[entry.id]} />}
                         <div className="eyebrow" style={{ marginTop: 10 }}>
                           {when(entry.at)}{game ? <> · <a href={`#/game/${game.id}`}>{game.title}</a></> : null}
                         </div>

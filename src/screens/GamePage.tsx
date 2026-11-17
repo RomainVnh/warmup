@@ -400,10 +400,12 @@ function Health({ game }: { game: Game }) {
   const { play, data } = useApp();
   return (
     <div className="flow narrow">
-      {data.demo && <section>
+      <section>
         <h2 className="h2">Ce qui a changé depuis la dernière partie réussie</h2>
         <p className="muted" style={{ margin: '6px 0 14px' }}>Du plus suspect au moins suspect. C'est ici que se trouve presque toujours la cause d'un problème.</p>
-        {game.changes.length === 0 && <p className="strong">Rien n'a changé : le jeu est dans l'état exact où il tournait bien.</p>}
+        {game.changes.length === 0 && (data.demo || data.reports.some((r) => r.gameId === game.id && r.ok)
+          ? <p className="strong">Rien n'a changé : le jeu est dans l'état exact où il tournait bien.</p>
+          : <p className="strong">Warmup prendra une photo du PC à votre première partie réussie : pilote, Windows, écran, version du jeu. Elle servira de référence si un jour le jeu se met à mal tourner.</p>)}
         {game.changes.map((c) => (
           <div key={c.title} className="list-row">
             <span className={`small strong ${c.level === 0 ? 'status-warn' : 'muted'}`} style={{ width: 120 }}>{CHANGE_TAGS[c.level]}</span>
@@ -414,7 +416,7 @@ function Health({ game }: { game: Game }) {
             <span className="small muted">{c.when}</span>
           </div>
         ))}
-      </section>}
+      </section>
       <section>
         <div className="block-head">
           <h2 className="h2">Contrôle avant lancement</h2>

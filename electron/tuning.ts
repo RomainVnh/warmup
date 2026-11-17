@@ -195,7 +195,7 @@ export function heavyApps(state: TuningState): { label: string; memMb: number; e
     .sort((a, b) => b.memMb - a.memMb);
 }
 
-export interface Tuning { parts: PcPart[]; issues: PcIssue[] }
+export interface Tuning { parts: PcPart[]; issues: PcIssue[]; facts: Record<string, string> }
 
 /** Ce que Warmup conclut de l'état de Windows : une ligne d'état par point, et un point à améliorer quand il y a lieu. */
 export function evaluate(state: TuningState, context: TuningContext = { games: [], fpsTool: false }): Tuning {
@@ -329,5 +329,8 @@ export function evaluate(state: TuningState, context: TuningContext = { games: [
     }
   }
 
-  return { parts, issues };
+  // Réglages ajoutés à la photo du PC.
+  const facts: Record<string, string> = { 'Mode Jeu': state.gameMode === 0 ? 'Désactivé' : 'Activé' };
+  if (state.hags !== null) facts['Planification GPU'] = state.hags === 2 ? 'Activée' : 'Désactivée';
+  return { parts, issues, facts };
 }

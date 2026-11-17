@@ -3,6 +3,7 @@ import type { PcIssue, PcPart } from '../../shared/types';
 import { api } from '../api';
 import { useApp } from '../context';
 import { Ambient, Icon, Ring, Stat, StatusText } from '../ui';
+import { Effect } from './Journal';
 
 export function Diagnostic() {
   const { data, notify, journal, undoFix, reload } = useApp();
@@ -132,6 +133,7 @@ export function Diagnostic() {
                   <div className="grow">
                     <div className="strong">{entry.title}</div>
                     <div className="small muted">{entry.detail}</div>
+                    {!entry.undone && data.effects?.[entry.id] && <Effect effect={data.effects[entry.id]} />}
                   </div>
                   {entry.undone
                     ? <span className="chip">Annulée</span>

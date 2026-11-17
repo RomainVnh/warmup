@@ -97,7 +97,8 @@ export type OpenTarget = 'reglages-graphiques' | 'windows-update' | 'stockage' |
 export interface PcIssue { title: string; why: string; change: string; action: string; guideId?: string; fix?: FixId; open?: OpenTarget }
 export interface FixResult { ok: boolean; message: string }
 /** Matériel du PC. example vaut vrai dans le navigateur, où rien ne peut être lu. */
-export interface PcReport { example: boolean; checkedAt: string; parts: PcPart[]; issues: PcIssue[] }
+/** `facts` : photo du PC (pilote, système, écran…), comparée d'une partie à l'autre pour trouver ce qui a changé. */
+export interface PcReport { example: boolean; checkedAt: string; parts: PcPart[]; issues: PcIssue[]; facts?: Record<string, string> }
 export interface ServerState { game: string; region: string; ping: string; state: string; status: Status }
 export interface FixLog { what: string; detail: string }
 export interface Mod { order: number; name: string; note: string; version: string; state: string; level: 'ok' | 'warn' | 'update'; enabled: boolean }
@@ -140,6 +141,8 @@ export interface Report {
   chart: ReportChart;
   /** Déroulé de la partie : images par seconde, ping et température, avec les moments où ça a décroché. */
   timeline?: ReportTimeline;
+  /** Partie avec un incident : ce qui a changé depuis la dernière partie réussie de ce jeu. */
+  changes?: Change[];
   events: ReportEvent[];
   advice: { title: string; text: string; action: string; href: string } | null;
 }
@@ -202,7 +205,12 @@ export interface SessionRecord {
   fpsMissing?: 'absent' | 'autorisation' | 'echec' | 'windows';
   /** Relevés au fil de la partie, pour le graphique du bilan. */
   timeline?: RawTimeline;
+  /** Photo de l'environnement au lancement : pilote, système, écran, réglages, version du jeu. */
+  env?: Record<string, string>;
 }
+
+/** Effet d'une correction mesuré sur de vraies parties : avant / après, ou avec / sans. `better` : null si rien de net. */
+export interface FixEffect { headline: string; lines: string[]; better: boolean | null; basis: string }
 
 /** Une ligne du journal : ce que Warmup a modifié sur le PC. */
 export interface JournalEntry {
@@ -235,6 +243,8 @@ export interface Snapshot {
   notices: Notice[];
   guides: Guide[];
   profile: Profile;
+  /** Effet mesuré des corrections, par identifiant de ligne du journal. */
+  effects?: Record<string, FixEffect>;
 }
 
 export interface Settings {

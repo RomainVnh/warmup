@@ -102,7 +102,7 @@ test('Steam : bibliothèques de l\'ancien format, avec des chemins Windows', () 
 
 test('Steam : lecture d\'un jeu installé', () => {
   const game = readManifest(sample('steam-appmanifest_1086940.acf'), '/bibli');
-  assert.deepEqual(game, { source: 'Steam', storeId: '1086940', title: 'Baldur\'s Gate 3', folder: path.join('/bibli', 'steamapps', 'common', 'Baldurs Gate 3'), sizeGb: 139.6, complete: true, launch: { kind: 'url', url: 'steam://rungameid/1086940' }, uninstall: { kind: 'url', url: 'steam://uninstall/1086940' }, verify: { kind: 'url', url: 'steam://validate/1086940' } });
+  assert.deepEqual(game, { source: 'Steam', storeId: '1086940', title: 'Baldur\'s Gate 3', folder: path.join('/bibli', 'steamapps', 'common', 'Baldurs Gate 3'), sizeGb: 139.6, version: 'build 15842630', complete: true, launch: { kind: 'url', url: 'steam://rungameid/1086940' }, uninstall: { kind: 'url', url: 'steam://uninstall/1086940' }, verify: { kind: 'url', url: 'steam://validate/1086940' } });
 });
 
 test('Steam : outil ignoré, mise à jour en cours signalée, dossier piégé refusé', () => {

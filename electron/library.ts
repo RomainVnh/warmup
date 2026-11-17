@@ -26,6 +26,8 @@ export interface LibraryGame {
   /** Plateforme d'origine, ou null pour un jeu ajouté à la main. */
   store: DetectSource | null;
   folder: string;
+  /** Version installée (build Steam), quand la plateforme la note. */
+  version?: string | null;
   sizeGb: number | null;
   complete: boolean;
   launch: LaunchPlan | null;
@@ -79,8 +81,8 @@ function rebuild(found: MatchedGame[]): string[] {
     // Un jeu reconnu garde l'identifiant du catalogue ; les autres en reçoivent un tiré de leur titre.
     const id = unique(g.libraryId ?? slug(g.title), used);
     ids.push(id);
-    nextGames.push({ id, title: g.title, source: g.source, store: g.source, folder: g.folder, sizeGb: g.sizeGb, complete: g.complete, launch: g.launch, uninstall: g.uninstall ?? null, verify: g.verify ?? null, manual: false });
-    nextInputs.push({ id, title: g.title, source: g.source, folder: g.folder, sizeGb: g.sizeGb, complete: g.complete, catalogueId: g.libraryId, steamId: g.source === 'Steam' ? g.storeId : null, manual: false, platformMinutes: g.minutes ?? null, platformLastPlayed: g.lastPlayed ?? null });
+    nextGames.push({ id, title: g.title, source: g.source, store: g.source, folder: g.folder, version: g.version ?? null, sizeGb: g.sizeGb, complete: g.complete, launch: g.launch, uninstall: g.uninstall ?? null, verify: g.verify ?? null, manual: false });
+    nextInputs.push({ id, title: g.title, source: g.source, folder: g.folder, sizeGb: g.sizeGb, complete: g.complete, catalogueId: g.libraryId, steamId: g.source === 'Steam' ? g.storeId : null, version: g.version ?? null, manual: false, platformMinutes: g.minutes ?? null, platformLastPlayed: g.lastPlayed ?? null });
   }
   for (const g of manual) {
     nextGames.push({ id: g.id, title: g.title, source: 'Manuel', store: null, folder: g.folder, sizeGb: null, complete: true, launch: { kind: 'exe', file: g.file, args: [], cwd: path.dirname(g.file) }, uninstall: null, verify: null, manual: true });
@@ -137,8 +139,8 @@ export async function refreshSteam(force = false): Promise<void> {
   steam = { name: cleanText(profile.name, 40), friends, achieved: obtained };
 }
 
-export function realSnapshot(parts: PcPart[], issues: PcIssue[] = []): Snapshot {
-  return buildRealSnapshot({ games: inputs, parts, issues, sessions: allSessions(), journal: journal(), now: Date.now(), steam });
+export function realSnapshot(parts: PcPart[], issues: PcIssue[] = [], facts?: Record<string, string>, args?: Record<string, string>): Snapshot {
+  return buildRealSnapshot({ games: inputs, parts, issues, facts, args, sessions: allSessions(), journal: journal(), now: Date.now(), steam });
 }
 
 const done = (message: string, gameId?: string): GameActionResult & { gameId?: string } => ({ ok: true, simulated: false, message, gameId });

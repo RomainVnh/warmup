@@ -6,6 +6,7 @@ import type { SessionRecord } from '../shared/types';
 import { pathKey } from './detect/files';
 import { watchFps, type FpsMissing, type FpsWatch } from './fps';
 import { thinTimeline } from '../shared/timeline';
+import { cleanEnv } from '../shared/env';
 import { readJson, writeJson } from './store';
 
 // Suivi des vraies parties, de l'extérieur du jeu : Warmup regarde seulement la liste des programmes ouverts.
@@ -121,7 +122,8 @@ const isRecord = (value: unknown): value is SessionRecord => {
 };
 
 export function cleanSessions(input: unknown): SessionRecord[] {
-  return Array.isArray(input) ? input.filter(isRecord).slice(-MAX_RECORDS) : [];
+  // La photo de l'environnement est relue avec prudence : textes courts, en nombre limité.
+  return Array.isArray(input) ? input.filter(isRecord).slice(-MAX_RECORDS).map((s) => ({ ...s, env: cleanEnv(s.env) })) : [];
 }
 
 let records: SessionRecord[] = [];
@@ -145,6 +147,7 @@ function cpuNow(): { busy: number; total: number } {
 interface Watch {
   gameId: string;
   folder: string;
+  env: Record<string, string> | undefined;
   launchedAt: number;
   start: number | null;
   lastSeen: number;
@@ -194,6 +197,7 @@ function finish(): void {
     avgCpu: w.cpu.length ? Math.round(w.cpu.reduce((a, b) => a + b, 0) / w.cpu.length) : null,
     samples: thin(w.mem)
   };
+  if (w.env) record.env = w.env;
   const answered = w.pings.filter((p): p is number => p !== null);
   if (w.pings.length >= 3 && answered.length) {
     record.ping = {
@@ -260,12 +264,13 @@ async function poll(): Promise<void> {
 }
 
 /** Commence à suivre un jeu qui vient d'être lancé. `onEnd` reçoit la partie mesurée, ou null si le jeu n'est jamais apparu. */
-export function trackGame(gameId: string, folder: string, onEnd: (record: SessionRecord | null) => void = () => undefined): void {
+export function trackGame(gameId: string, folder: string, env: Record<string, string> | undefined, onEnd: (record: SessionRecord | null) => void = () => undefined): void {
   if (watch?.gameId === gameId) return;
   finish(); // un seul jeu suivi à la fois
   watch = {
     gameId,
     folder,
+    env: cleanEnv(env),
     launchedAt: Date.now(),
     start: null,
     lastSeen: Date.now(),

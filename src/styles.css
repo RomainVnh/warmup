@@ -353,11 +353,11 @@ body { font-variant-numeric: tabular-nums; }
 /* Fil chronologique */
 .tl { position: relative; margin: 0; padding: 0 0 0 28px; list-style: none; }
 .tl::before { content: ''; position: absolute; left: 5px; top: 8px; bottom: 8px; width: 1px; }
-.tl li { position: relative; padding: 0 0 28px; }
-.tl li:last-child { padding-bottom: 0; }
-.tl li::before { content: ''; position: absolute; background: var(--bg); border: 2px solid var(--text-2); }
-.tl li.ok::before { border-color: var(--ok); box-shadow: 0 0 10px rgba(95, 212, 122, 0.5); }
-.tl li.warn::before { border-color: var(--warn); box-shadow: 0 0 10px rgba(242, 163, 58, 0.5); }
+.tl > li { position: relative; padding: 0 0 28px; }
+.tl > li:last-child { padding-bottom: 0; }
+.tl > li::before { content: ''; position: absolute; background: var(--bg); border: 2px solid var(--text-2); }
+.tl > li.ok::before { border-color: var(--ok); box-shadow: 0 0 10px rgba(95, 212, 122, 0.5); }
+.tl > li.warn::before { border-color: var(--warn); box-shadow: 0 0 10px rgba(242, 163, 58, 0.5); }
 
 /* Succès */
 .ach-head { display: flex; flex-wrap: wrap; align-items: center; gap: 40px 56px; margin-bottom: 40px; }
@@ -487,7 +487,7 @@ body { font-family: var(--body); letter-spacing: 0.005em; }
 .cover-card:hover .cover { transform: translateY(-4px); }
 .cover-name { font-weight: 500; }
 .tl::before { background: var(--line-strong); }
-.tl li::before { border-radius: 0; transform: rotate(45deg); width: 9px; height: 9px; left: -27px; top: 7px; border-width: 1px; border-color: var(--accent); }
+.tl > li::before { border-radius: 0; transform: rotate(45deg); width: 9px; height: 9px; left: -27px; top: 7px; border-width: 1px; border-color: var(--accent); }
 .gallery-thumbs button[aria-pressed='true'] { outline: 0; opacity: 1; filter: drop-shadow(0 0 8px var(--accent-glow)); }
 .msg.me p { background: var(--accent); color: var(--accent-ink); }
 .composer { border: 0; background: var(--panel-2); }
@@ -1002,3 +1002,10 @@ a.list-row .link { flex: none; }
 .tline-mark.low b { top: 22px; }
 .tline-list .eyebrow { white-space: nowrap; }
 .launch-row .tag.warn { color: var(--warn); }
+
+/* Effet mesuré d'une correction (journal, diagnostic) */
+.effect { margin-top: 12px; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); max-width: 70ch; }
+.effect-head { display: flex; align-items: center; gap: 8px; }
+.effect-ok .effect-head svg { color: var(--ok); }
+.effect-warn .effect-head svg { color: var(--warn); }
+.effect ul { margin: 8px 0 6px; padding-left: 18px; color: var(--text-2); font-size: 13px; line-height: 1.6; }

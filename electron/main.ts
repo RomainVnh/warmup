@@ -16,6 +16,7 @@ import { hasSession, loadSession, onlineAdmin, pushData, requestCode, serviceAva
 import { readJson, writeJson } from './store';
 import { hasFpsTool, loadSessions, setFpsTool, stopTracking, trackGame } from './sessions';
 import { simulateLaunch } from '../shared/launch-sim';
+import { gameEnv } from '../shared/env';
 import { cleanFavorites, isEmail, type LoginResult, cleanAccount, cleanAllGameOptions, cleanGameOptions, cleanCollections, defaultGameOptions, splitArgs, cleanProfileCard, defaultAccount, defaultProfileCard, defaultSettings, settingKeys, type Account, type Collection, type FixId, type FixResult, type OpenTarget, type GameActionResult, type GameFiles, type GameOptions, type LaunchEvent, type PcReport, type ProfileCard, type Settings, type Snapshot, type Source } from '../shared/types';
 
 // Partie système. C'est le seul endroit qui a le droit de toucher au PC.
@@ -152,7 +153,7 @@ async function detect() {
 }
 
 /** Ce que la partie système sait d'un jeu installé : où il est, comment le lancer, le vérifier, le désinstaller. */
-interface Copy { title: string; source: Source; folder: string; sizeGb: number | null; complete: boolean; launch: MatchedGame['launch']; uninstall: MatchedGame['launch']; verify: MatchedGame['launch']; manual: boolean }
+interface Copy { title: string; source: Source; folder: string; version?: string | null; sizeGb: number | null; complete: boolean; launch: MatchedGame['launch']; uninstall: MatchedGame['launch']; verify: MatchedGame['launch']; manual: boolean }
 async function copyOf(gameId: unknown): Promise<Copy | undefined> {
   const game = knownGame(gameId);
   if (!game) return undefined;
@@ -165,13 +166,16 @@ async function copyOf(gameId: unknown): Promise<Copy | undefined> {
 // Version vierge : la bibliothèque et le matériel sont relus, au plus une fois toutes les dix secondes.
 let pcCache: { at: number; report: PcReport } | null = null;
 
+/** Arguments de lancement de chaque jeu : ils font partie de ce qui peut avoir changé depuis une partie réussie. */
+const argsByGame = (): Record<string, string> => Object.fromEntries(Object.entries(gameOptions).map(([id, o]) => [id, o.args]));
+
 /** Matériel, puis réglages de Windows qui comptent pour jouer (Windows seulement), avec ce qui peut être corrigé. */
 async function readPcAll(): Promise<PcReport> {
   const [report, state] = await Promise.all([readPc(), process.platform === 'win32' ? readState() : Promise.resolve(null)]);
   if (!state) return report;
   const games = gamesNow().filter((g) => g.installed && g.location).map((g) => ({ title: g.title, folder: g.location, sizeGb: g.sizeGb }));
   const tuning = evaluate(state, { games, fpsTool: hasFpsTool() });
-  return { ...report, parts: [...report.parts, ...tuning.parts], issues: [...tuning.issues, ...report.issues] };
+  return { ...report, parts: [...report.parts, ...tuning.parts], issues: [...tuning.issues, ...report.issues], facts: { ...report.facts, ...tuning.facts } };
 }
 
 const FIXES: FixId[] = ['programmes', 'mode-jeu', 'frequence', 'mesure-fps'];
@@ -190,12 +194,12 @@ async function buildReal(force = false): Promise<Snapshot> {
   await refreshLibrary();
   await refreshSteam(force);
   if (!pcCache || Date.now() - pcCache.at > 60_000) pcCache = { at: Date.now(), report: await readPcAll() };
-  realData = realSnapshot(pcCache.report.parts, pcCache.report.issues);
+  realData = realSnapshot(pcCache.report.parts, pcCache.report.issues, pcCache.report.facts, argsByGame());
   builtAt = Date.now();
   return realData;
 }
 const rebuildReal = (): void => {
-  if (pcCache) realData = realSnapshot(pcCache.report.parts, pcCache.report.issues);
+  if (pcCache) realData = realSnapshot(pcCache.report.parts, pcCache.report.issues, pcCache.report.facts, argsByGame());
   builtAt = Date.now();
 };
 let collections: Collection[] = [];
@@ -464,7 +468,11 @@ function registerActions(): void {
         const entry = power
           ? logAction({ kind: 'alimentation', title: 'Windows passé en mode « Performances élevées »', detail: `Pendant la partie de ${game.title}. Mode d'origine : ${power.previousName}, rétabli à la fin de la partie.`, gameId: game.id, data: power.previous })
           : null;
-        trackGame(game.id, installed.folder, () => {
+        // Photo de l'environnement au lancement (matériel relu s'il date de plus de cinq minutes) : elle servira
+        // à dire ce qui a changé si une prochaine partie se passe mal.
+        if (!pcCache || Date.now() - pcCache.at > 5 * 60_000) pcCache = { at: Date.now(), report: await readPcAll() };
+        const env = gameEnv(pcCache.report.facts ?? {}, { version: installed.version, sizeGb: installed.sizeGb, args: options.args });
+        trackGame(game.id, installed.folder, env, () => {
           // Fin de la partie : le mode d'origine est rétabli, et le journal le note.
           if (power && entry) void restorePower(power.previous).then((done) => done && markUndone(entry));
           reopen?.();

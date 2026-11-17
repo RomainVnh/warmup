@@ -181,5 +181,13 @@ export async function readPc(): Promise<PcReport> {
   parts.push({ name: 'Système', big: system, text: win.os?.BuildNumber ? `Version ${win.os.BuildNumber}.` : 'Version reconnue.', status: 'ok' });
 
   const time = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-  return { example: false, checkedAt: `Contrôlé à ${time}`, parts, issues };
+  // Photo du PC : ce qui, en changeant, peut expliquer qu'un jeu tourne moins bien qu'avant.
+  const facts: Record<string, string> = {
+    'Carte graphique': gpuName || 'Non reconnue',
+    'Mémoire vive': `${total} Go`,
+    Écran: `${width} × ${height}${hz ? ` à ${hz} Hz` : ''}`,
+    Système: `${system}${win.os?.BuildNumber ? ` (version ${win.os.BuildNumber})` : ''}`
+  };
+  if (gpu?.DriverVersion) facts['Pilote graphique'] = gpu.DriverVersion;
+  return { example: false, checkedAt: `Contrôlé à ${time}`, parts, issues, facts };
 }

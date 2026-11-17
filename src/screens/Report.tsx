@@ -80,6 +80,27 @@ export function Report({ id }: { id: string }) {
         <div className="axis">{chart.axis.map((label, i) => <span key={i}>{label}</span>)}</div>
       </section>
 
+      {report.changes && (
+        <section className="section" aria-label="Ce qui a changé">
+          <div className="block-head">
+            <h2 className="h2">Ce qui a changé depuis la dernière partie réussie</h2>
+            <span className="small muted">{report.changes.length ? 'Du plus suspect au moins suspect' : 'Rien n\'a changé'}</span>
+          </div>
+          {report.changes.length === 0
+            ? <p className="muted">Le PC et le jeu étaient dans le même état que lors de la dernière partie réussie : la cause est ailleurs (réseau, serveurs du jeu, chaleur…).</p>
+            : report.changes.map((c) => (
+              <div key={c.title} className="list-row">
+                <span className={`small strong ${c.level === 0 ? 'status-warn' : 'muted'}`} style={{ width: 120 }}>{['Cause probable', 'À surveiller', 'Sans risque'][c.level]}</span>
+                <div className="grow">
+                  <div className="strong">{c.title}</div>
+                  <div className="small muted">{c.text}</div>
+                </div>
+                <span className="small muted">{c.when}</span>
+              </div>
+            ))}
+        </section>
+      )}
+
       <div className="split section">
         <section>
           <h2 className="h2" style={{ marginBottom: 24 }}>Ce qui s'est passé</h2>

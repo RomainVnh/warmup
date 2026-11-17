@@ -24,6 +24,8 @@ export interface FoundGame {
   uninstall?: LaunchPlan | null;
   /** Vérification des fichiers par la plateforme (Steam seulement). */
   verify?: LaunchPlan | null;
+  /** Version installée, quand la plateforme la note (numéro de build chez Steam). */
+  version?: string;
   /** Temps de jeu et dernière partie d'après la plateforme, quand elle les enregistre sur le PC (Steam). */
   minutes?: number;
   lastPlayed?: number;
