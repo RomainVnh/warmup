@@ -122,3 +122,11 @@ test('incidents repérés pendant une partie', () => {
   assert.deepEqual([snap.reports[0].ok, snap.reports[0].cause, snap.reports[0].advice?.href], [false, 'Réseau', '#/guide/box']);
   assert.equal(snap.week.cleanLaunches, '0 sur 1');
 });
+
+test('correction d\'alimentation : lecture de powercfg', async () => {
+  const { HIGH_PERFORMANCE, hasHighPerformance, parseScheme } = await import('./fixes');
+  assert.deepEqual(parseScheme('GUID du mode de gestion de l\'alimentation : 381b4222-f694-41f0-9685-ff5bb260df2e  (Utilisation normale)'), { guid: '381b4222-f694-41f0-9685-ff5bb260df2e', name: 'Utilisation normale' });
+  assert.equal(parseScheme('rien ici'), null);
+  assert.equal(hasHighPerformance(`Power Scheme GUID: ${HIGH_PERFORMANCE}  (High performance)`), true);
+  assert.equal(hasHighPerformance('Power Scheme GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (Balanced) *'), false);
+});

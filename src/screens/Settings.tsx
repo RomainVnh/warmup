@@ -14,7 +14,7 @@ export const SETTING_GROUPS: { title: string; rows: { key: keyof Settings; label
   },
   {
     title: 'Corrections',
-    rows: [{ key: 'askBeforeFix', label: 'Demander mon accord avant chaque correction', text: 'Warmup montre ce qui va changer et attend votre réponse. Toute correction reste annulable depuis le journal.' }]
+    rows: [{ key: 'powerBoost', label: 'Passer Windows en « Performances élevées » pendant le jeu', text: 'Au lancement d\'un jeu, Warmup change le mode d\'alimentation de Windows, puis rétablit le vôtre à la fin de la partie. Chaque changement est noté dans le journal et peut être annulé. Sur un portable, la batterie se vide plus vite.' }, { key: 'askBeforeFix', label: 'Demander mon accord avant chaque correction', text: 'Warmup montre ce qui va changer et attend votre réponse. Toute correction reste annulable depuis le journal.' }]
   },
   {
     title: 'Données',
@@ -27,7 +27,7 @@ export const SETTING_GROUPS: { title: string; rows: { key: keyof Settings; label
 ];
 
 /** Réglages qui agissent déjà pour de vrai sur ce PC. */
-const REAL_SETTINGS: (keyof Settings)[] = ['launchWindow', 'startWithWindows'];
+const REAL_SETTINGS: (keyof Settings)[] = ['launchWindow', 'startWithWindows', 'powerBoost'];
 
 export function SettingsPage() {
   const { settings, updateSettings, account, updateAccount, data } = useApp();

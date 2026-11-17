@@ -7,8 +7,11 @@ import { readJson, writeJson } from './store';
 const FILE = 'journal.json';
 const MAX_ENTRIES = 500;
 
-/** Annulations possibles, par nature d'action. Vide pour l'instant : aucune correction réelle n'existe encore. */
+/** Annulations possibles, par nature d'action. Une correction s'y inscrit avec registerUndo. */
 const UNDO: Record<string, (entry: JournalEntry) => Promise<boolean>> = {};
+export const registerUndo = (kind: string, handler: (entry: JournalEntry) => Promise<boolean>): void => {
+  UNDO[kind] = handler;
+};
 
 const isEntry = (value: unknown): value is JournalEntry => {
   if (!value || typeof value !== 'object') return false;
@@ -37,9 +40,17 @@ export function loadDemoJournal(log: FixLog[], now = Date.now()): void {
 
 export const journal = (): JournalEntry[] => entries;
 
-export function logAction(action: { kind: string; title: string; detail: string; gameId?: string }): void {
+export function logAction(action: { kind: string; title: string; detail: string; gameId?: string; data?: string }): string {
   const undoable = action.kind in UNDO;
-  entries = [{ id: `${action.kind}-${Date.now()}`, at: Date.now(), title: action.title, detail: action.detail, gameId: action.gameId, undoable, undone: false }, ...entries].slice(0, MAX_ENTRIES);
+  const id = `${action.kind}-${Date.now()}`;
+  entries = [{ id, at: Date.now(), title: action.title, detail: action.detail, gameId: action.gameId, undoable, undone: false, data: action.data }, ...entries].slice(0, MAX_ENTRIES);
+  if (persistent) writeJson(FILE, entries);
+  return id;
+}
+
+/** Marque une ligne comme annulée sans rejouer l'annulation (la valeur d'origine vient d'être rétablie autrement). */
+export function markUndone(id: string): void {
+  entries = entries.map((e) => (e.id === id ? { ...e, undone: true } : e));
   if (persistent) writeJson(FILE, entries);
 }
 

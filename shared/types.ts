@@ -192,6 +192,8 @@ export interface JournalEntry {
   gameId?: string;
   /** Faux : l'action ne peut pas être annulée (une désinstallation, par exemple). */
   undoable: boolean;
+  /** Valeur d'origine, pour pouvoir la rétablir (réservé à la partie système). */
+  data?: string;
   undone: boolean;
 }
 
@@ -218,13 +220,16 @@ export interface Settings {
   askBeforeFix: boolean;
   shareCatalog: boolean;
   startWithWindows: boolean;
+  /** Correction : passer Windows en « Performances élevées » pendant une partie, puis rétablir le mode d'origine. */
+  powerBoost: boolean;
 }
 
 export const defaultSettings: Settings = {
   launchWindow: true,
   askBeforeFix: true,
   shareCatalog: false,
-  startWithWindows: false
+  startWithWindows: false,
+  powerBoost: false
 };
 
 export const settingKeys = Object.keys(defaultSettings) as (keyof Settings)[];

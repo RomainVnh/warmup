@@ -4,7 +4,8 @@ import path from 'node:path';
 import { snapshot as demoSnapshot } from '../shared/mock-data';
 import { detectAll, type MatchedGame } from './detect';
 import { readPc } from './hardware';
-import { journal, loadDemoJournal, loadJournal, logAction, undo } from './journal';
+import { boostPower, restorePower } from './fixes';
+import { journal, loadDemoJournal, loadJournal, logAction, markUndone, registerUndo, undo } from './journal';
 import { openFolder, openGame, withArgs } from './launch';
 import { addManualGame, findLibraryGame, loadManualGames, realSnapshot, refreshLibrary, refreshSteam, removeManualGame, renameManualGame } from './library';
 import { isAdmin } from './admin';
@@ -407,11 +408,21 @@ function registerActions(): void {
     let cancelled = false;
     const start = () => {
       if (!plan) return send(demo ? { type: 'started', real: false } : { type: 'failed', reason: 'Warmup ne sait pas encore lancer ce jeu. Ouvrez-le depuis sa plateforme.' });
-      void openGame(plan).then((result) => {
+      void openGame(plan).then(async (result) => {
         if (cancelled) return;
         send(result.ok ? { type: 'started', real: true } : { type: 'failed', reason: result.reason });
         // Version vierge : la partie est suivie de l'extérieur, pour de vraies heures de jeu et un vrai bilan.
-        if (result.ok && !demo && installed) trackGame(game.id, installed.folder, () => rebuildReal());
+        if (!result.ok || demo || !installed) return;
+        // Correction activée dans les réglages : Windows passe en « Performances élevées » pendant la partie.
+        const power = settings.powerBoost ? await boostPower() : null;
+        const entry = power
+          ? logAction({ kind: 'alimentation', title: 'Windows passé en mode « Performances élevées »', detail: `Pendant la partie de ${game.title}. Mode d'origine : ${power.previousName}, rétabli à la fin de la partie.`, gameId: game.id, data: power.previous })
+          : null;
+        trackGame(game.id, installed.folder, () => {
+          // Fin de la partie : le mode d'origine est rétabli, et le journal le note.
+          if (power && entry) void restorePower(power.previous).then((done) => done && markUndone(entry));
+          rebuildReal();
+        });
       });
     };
     // Contrôles désactivés pour ce jeu : il s'ouvre tout de suite.
@@ -472,6 +483,8 @@ function createWindow(): void {
 app.whenReady().then(() => {
   settings = readSettings();
   profileCard = readProfileCard();
+  // Annulation d'une correction d'alimentation depuis le journal : le mode d'origine est rétabli tout de suite.
+  registerUndo('alimentation', (entry) => restorePower(entry.data ?? ''));
   account = readAccount();
   loadSession();
   if (serviceAvailable() && !hasSession()) account = { ...account, signedIn: false };
