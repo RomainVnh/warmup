@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/Warmup - V2 .png" width="128" height="128" alt="Logo de Warmup : trois traits blancs penchés sur fond noir">
+  <img src="docs/logo.svg" width="128" height="128" alt="Logo de Warmup : trois traits blancs penchés sur fond noir">
 </p>
 
 <h1 align="center">Warmup</h1>
