@@ -978,3 +978,26 @@ a.list-row .link { flex: none; }
 .start-pc { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0; border-top: 1px solid var(--line); }
 .start-pc li { display: flex; flex-direction: column; gap: 6px; padding: 18px 20px 18px 0; border-bottom: 1px solid var(--line); }
 .start-pc .pill { font-size: 12px; }
+
+/* Déroulé de la partie (bilan) : courbes alignées sur le même temps, moments à signaler numérotés */
+.tline { position: relative; display: flex; flex-direction: column; gap: 18px; padding-top: 26px; }
+.tline-marks { position: absolute; inset: 0 0 26px 0; pointer-events: none; }
+.tline-mark { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px dashed rgba(242, 163, 58, 0.55); }
+.tline-mark b { position: absolute; top: 0; left: 0; transform: translateX(-50%); display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--warn); color: var(--warn-ink); font: 600 11px var(--mono); }
+.tline-series { display: flex; flex-direction: column; gap: 8px; }
+.tline-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; }
+.tline-plot { position: relative; height: 96px; border-bottom: 1px solid var(--line); }
+.tline-plot svg { width: 100%; height: 100%; overflow: visible; display: block; }
+.tline-line { fill: none; stroke: var(--text); stroke-width: 1.6; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+.tline-limit { stroke: var(--line-strong); stroke-width: 1; stroke-dasharray: 3 4; vector-effect: non-scaling-stroke; }
+.tline-limit-label { position: absolute; right: 0; top: -2px; color: var(--muted); font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; }
+.tline-dot { position: absolute; width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; border-radius: 50%; background: var(--warn); box-shadow: 0 0 0 3px rgba(242, 163, 58, 0.25); }
+.tline-dot.lost { background: transparent; border: 2px solid var(--warn); }
+.tline .axis { display: flex; justify-content: space-between; }
+.tline-list { list-style: none; margin: 22px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px 28px; }
+.tline-list li { display: flex; align-items: center; gap: 12px; min-height: 32px; }
+.tline-list li > span:last-child { display: inline-flex; align-items: center; gap: 6px; color: var(--text-2); }
+.tline-list svg { color: var(--warn); flex: none; }
+.tline-num { display: grid; place-items: center; flex: none; width: 22px; height: 22px; border-radius: 50%; background: var(--warn); color: var(--warn-ink); font: 600 11px var(--mono); }
+.tline-mark.low b { top: 22px; }
+.tline-list .eyebrow { white-space: nowrap; }

@@ -4,6 +4,7 @@ import path from 'node:path';
 import type { SessionRecord } from '../shared/types';
 import { pathKey } from './detect/files';
 import { watchFps, type FpsMissing, type FpsWatch } from './fps';
+import { thinTimeline } from '../shared/timeline';
 import { readJson, writeJson } from './store';
 
 // Suivi des vraies parties, de l'extérieur du jeu : Warmup regarde seulement la liste des programmes ouverts.
@@ -156,6 +157,8 @@ interface Watch {
   /** Images par seconde de chaque relevé (null : aucune image vue), et la mesure en cours. */
   fps: (number | null)[];
   fpsWatch: FpsWatch | null;
+  /** Relevés alignés pour le graphique : un point par relevé pendant la partie. */
+  line: { fps: (number | null)[]; ping: (number | null)[]; temp: (number | null)[] };
   lastCpu: { busy: number; total: number };
   timer: ReturnType<typeof setInterval>;
   onEnd: (record: SessionRecord | null) => void;
@@ -203,6 +206,11 @@ function finish(): void {
   w.fpsWatch?.stop();
   if (frames) record.fps = { ...frames, samples: thin(w.fps.filter((v): v is number => v !== null)) };
   else if (missing) record.fpsMissing = missing;
+  // Graphique : seules les mesures réellement relevées sont gardées.
+  const has = (list: (number | null)[]) => list.some((v) => v !== null);
+  if (w.line.ping.length >= 3 && (has(w.line.fps) || has(w.line.ping) || has(w.line.temp))) {
+    record.timeline = thinTimeline({ step: POLL_MS / 1000, fps: has(w.line.fps) ? w.line.fps : [], ping: has(w.line.ping) ? w.line.ping : [], temp: has(w.line.temp) ? w.line.temp : [] });
+  }
   if (w.gpuTemps.length) record.gpu = { maxTemp: Math.max(...w.gpuTemps), avgLoad: Math.round(w.gpuLoads.reduce((a, b) => a + b, 0) / w.gpuLoads.length) };
   records = [...records, record].slice(-MAX_RECORDS);
   writeJson(FILE, records);
@@ -222,8 +230,12 @@ async function poll(): Promise<void> {
       // Images par seconde : le programme du jeu qui occupe le plus de mémoire est celui qui affiche les images.
       const main = [...mine].sort((a, b) => b.memMb - a.memMb).find((p) => p.pid);
       if (main?.pid) w.fpsWatch = watchFps(fpsTool, main.pid);
-    } else if (w.fpsWatch) {
-      w.fps.push(w.fpsWatch.stats.takeWindow());
+    } else {
+      const fps = w.fpsWatch ? w.fpsWatch.stats.takeWindow() : null;
+      if (w.fpsWatch) w.fps.push(fps);
+      w.line.fps.push(fps);
+      w.line.ping.push(ping ?? null);
+      w.line.temp.push(gpu ? gpu.temp : null);
     }
     w.lastSeen = now;
     w.misses = 0;
@@ -263,6 +275,7 @@ export function trackGame(gameId: string, folder: string, onEnd: (record: Sessio
     gpuLoads: [],
     fps: [],
     fpsWatch: null,
+    line: { fps: [], ping: [], temp: [] },
     lastCpu: cpuNow(),
     timer: setInterval(() => void poll(), POLL_MS),
     onEnd

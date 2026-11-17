@@ -3,6 +3,7 @@ import { CATALOGUE_STEAM_IDS, steamAchievementIcon, steamArt } from './catalogue
 import { guides } from './mock-extra';
 import { snapshot as catalogue } from './mock-data';
 import { gameNews } from './news-data';
+import { reportTimeline } from './timeline';
 import type { Check, FriendStatus, Game, JournalEntry, LaunchStep, PcPart, Report, Session, SessionRecord, Snapshot, Source } from './types';
 
 // Version vierge : la bibliothèque n'est faite que de ce qui est lu sur ce PC.
@@ -83,10 +84,17 @@ export function fpsNote(s: SessionRecord): string {
   }
 }
 
+const MARK_TEXT: Record<'fps' | 'ping' | 'temp', string> = {
+  fps: 'Le jeu a ralenti d\'un coup : c\'est ce qu\'on ressent comme une saccade.',
+  ping: 'Le réseau a été lent à répondre : retards et saccades en ligne.',
+  temp: 'Au-delà de 87 °C, la carte graphique ralentit pour se protéger.'
+};
+
 function report(s: SessionRecord, title: string, now: number): Report {
   const short = tooShort(s);
   const issue = incident(s);
   const peak = s.peakMemMb ? `${(s.peakMemMb / 1024).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Go` : 'Non mesurée';
+  const timeline = reportTimeline(s.timeline, s.start, clock);
   const values = s.samples.length > 1 ? s.samples.map((mb) => Math.round(mb / 102.4) / 10) : [0, 0];
   return {
     id: s.id,
@@ -117,8 +125,10 @@ function report(s: SessionRecord, title: string, now: number): Report {
       above: true,
       axis: [clock(s.start), clock(s.end)]
     },
+    timeline: timeline ?? undefined,
     events: [
       { time: clock(s.start), title: 'Jeu lancé', text: 'Warmup a vu le jeu démarrer.', ok: true },
+      ...(timeline?.marks ?? []).map((m) => ({ time: m.time, title: m.text, text: MARK_TEXT[m.kind], ok: false })),
       { time: clock(s.end), title: short ? 'Jeu fermé presque aussitôt' : 'Jeu fermé', text: short ? 'Moins d\'une minute après le lancement.' : `Après ${duration(s.seconds)}.`, ok: !short }
     ],
     advice: issue?.cause === 'Réseau' ? { title: 'Donner la priorité au PC de jeu sur votre box', text: 'Un guide pas à pas, en dix minutes.', action: 'Voir le guide', href: '#/guide/box' } : short ? { title: 'Si le jeu plante au démarrage', text: 'Vérifiez ses fichiers depuis les paramètres du jeu, puis relancez-le.', action: 'Ouvrir la fiche du jeu', href: `#/game/${s.gameId}` } : null

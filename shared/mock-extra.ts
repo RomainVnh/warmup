@@ -1,3 +1,4 @@
+import { reportTimeline } from './timeline';
 import type { FriendStatus, Game, GraphicsAdvice, Guide, ModSet, Notice, Report } from './types';
 
 // Suite des données d'exemple : réglages conseillés, bilans, mods, amis, téléchargements, notifications, guides.
@@ -167,7 +168,34 @@ export function buildReports(games: Game[]): Report[] {
   return games
     .flatMap((game) => game.sessions.map((_, index) => ({ game, index })))
     .sort((a, b) => a.index - b.index || a.game.recentRank - b.game.recentRank)
-    .map(({ game, index }) => reportFor(game, index));
+    .map(({ game, index }) => withTimeline(reportFor(game, index), game));
+}
+
+/** Déroulé d'exemple : 120 relevés d'une minute à partir de 21 h, avec les chutes qui correspondent à la cause du bilan. */
+function withTimeline(report: Report, game: Game): Report {
+  const seed = hash(report.id);
+  const fpsBase = game.graphics.fps || 90;
+  const pingBase = 18 + (hash(game.id) % 16);
+  const n = 120;
+  const wave = (i: number, amp: number) => Math.round(Math.sin((i + seed) * 0.7) * amp + Math.cos((i * 3 + seed) * 0.31) * amp * 0.6);
+  const fps = Array.from({ length: n }, (_, i) => Math.max(5, fpsBase + wave(i, Math.max(2, fpsBase * 0.04))));
+  const ping = Array.from({ length: n }, (_, i): number | null => pingBase + Math.abs(wave(i, 3)));
+  const temp = Array.from({ length: n }, (_, i) => Math.min(84, 66 + Math.round(i / 12) + Math.abs(wave(i, 2))));
+  if (report.cause === 'Réseau') {
+    for (const at of [38, 39, 40]) ping[at] = 180 + (seed % 60);
+    ping[86] = null;
+    fps[39] = Math.round(fpsBase * 0.5);
+  } else if (report.cause === 'Surchauffe') {
+    for (let i = 70; i < 95; i += 1) temp[i] = 86 + Math.round((i - 70) / 6);
+    for (let i = 82; i < 90; i += 1) fps[i] = Math.round(fpsBase * 0.45);
+  } else if (!report.ok) {
+    fps[57] = Math.round(fpsBase * 0.3);
+  }
+  const start = new Date();
+  start.setHours(21, 0, 0, 0);
+  const clock = (at: number) => new Date(at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const timeline = reportTimeline({ step: 60, fps, ping: game.region ? ping : [], temp }, start.getTime(), clock);
+  return timeline ? { ...report, timeline } : report;
 }
 
 /* ───── Mods ───── */

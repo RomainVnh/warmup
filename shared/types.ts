@@ -111,6 +111,13 @@ export interface ReportChart {
   axis: string[];
 }
 
+/** Relevés d'une partie, alignés : un point toutes les `step` secondes (null : rien de lu à ce moment). */
+export interface RawTimeline { step: number; fps: (number | null)[]; ping: (number | null)[]; temp: (number | null)[] }
+export interface ReportSeries { key: 'fps' | 'ping' | 'temp'; label: string; unit: string; values: (number | null)[]; limit: number; above: boolean }
+/** Moment marqué sur le graphique : `index` est la position du point dans les séries. */
+export interface ReportMark { index: number; kind: ReportSeries['key']; time: string; text: string }
+export interface ReportTimeline { axis: string[]; length: number; series: ReportSeries[]; marks: ReportMark[] }
+
 export interface Report {
   id: string;
   gameId: string;
@@ -124,6 +131,8 @@ export interface Report {
   text: string;
   tiles: Tile[];
   chart: ReportChart;
+  /** Déroulé de la partie : images par seconde, ping et température, avec les moments où ça a décroché. */
+  timeline?: ReportTimeline;
   events: ReportEvent[];
   advice: { title: string; text: string; action: string; href: string } | null;
 }
@@ -184,6 +193,8 @@ export interface SessionRecord {
   fps?: { avg: number; low1: number; samples: number[] };
   /** Pourquoi les images par seconde manquent : outil absent, autorisation de Windows refusée, échec, ou système autre que Windows. */
   fpsMissing?: 'absent' | 'autorisation' | 'echec' | 'windows';
+  /** Relevés au fil de la partie, pour le graphique du bilan. */
+  timeline?: RawTimeline;
 }
 
 /** Une ligne du journal : ce que Warmup a modifié sur le PC. */

@@ -1,4 +1,5 @@
 import { findGame, useApp } from '../context';
+import { Timeline } from '../Timeline';
 import { GameArt, Icon, PlayButton, Stat, StatusText } from '../ui';
 
 export function Report({ id }: { id: string }) {
@@ -52,6 +53,8 @@ export function Report({ id }: { id: string }) {
       <div className="stats">
         {report.tiles.map((t) => <Stat key={t.label} value={t.big} label={t.label} />)}
       </div>
+
+      {report.timeline && <Timeline timeline={report.timeline} />}
 
       <section className="section">
         <div className="block-head">
