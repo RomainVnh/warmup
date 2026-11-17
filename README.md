@@ -5,7 +5,7 @@
 <h1 align="center">Warmup</h1>
 
 <p align="center">
-  <strong> Warmup se défini comme un logiciel de lancement de jeux vidéos sur PC, spécialisé dans l'optimisation et qui s'assure que chaque partie démarre dans de bonnes conditions :.</strong><br>
+  <strong> Warmup se défini comme un logiciel de lancement de jeux vidéos sur PC, spécialisé dans l'optimisation et qui s'assure que chaque partie démarre dans de bonnes conditions.</strong><br>
   il sait ce qui ne va pas, l'explique simplement et le répare, à l'aide d''une IA performante implanté au coeur du système
 </p>
 
