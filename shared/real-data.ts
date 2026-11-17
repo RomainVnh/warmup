@@ -1,4 +1,5 @@
 import { steamAchievements } from './achievements-data';
+import { CATALOGUE_STEAM_IDS, steamAchievementIcon, steamArt } from './catalogue-steam';
 import { guides } from './mock-extra';
 import { snapshot as catalogue } from './mock-data';
 import { gameNews } from './news-data';
@@ -125,7 +126,6 @@ function checks(input: RealGameInput, parts: PcPart[]): { checks: Check[]; steps
   };
 }
 
-const STEAM_ART = 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps';
 
 function game(input: RealGameInput, parts: PcPart[], sessions: SessionRecord[], rank: number, now: number): Game {
   const known = input.catalogueId ? catalogue.games.find((g) => g.id === input.catalogueId) : undefined;
@@ -135,20 +135,22 @@ function game(input: RealGameInput, parts: PcPart[], sessions: SessionRecord[], 
   const last = Math.max(input.platformLastPlayed ?? 0, mine[0]?.end ?? 0) || null;
   const real = checks(input, parts);
   const warn = real.checks.filter((c) => c.status === 'warn').length;
-  // Jeu Steam inconnu du catalogue : ses visuels officiels viennent directement de Steam.
-  const remote = !known && input.steamId ? `${STEAM_ART}/${input.steamId}` : null;
-  const list = known ? (steamAchievements[known.id] ?? []).map((a) => ({ ...a, when: null })) : [];
+  // Visuels officiels chargés chez Steam (le dépôt et l'application publiés n'en contiennent aucun) :
+  // d'après le numéro du catalogue pour un jeu reconnu, sinon d'après celui trouvé par la détection.
+  const appId = (known && CATALOGUE_STEAM_IDS[known.id]) || input.steamId;
+  const remote = appId ? steamArt(appId) : null;
+  const list = known ? (steamAchievements[known.id] ?? []).map((a) => ({ ...a, icon: steamAchievementIcon(known.id, a.icon), when: null })) : [];
   return {
     id: input.id,
     title: known?.title ?? input.title,
     source: input.source,
     installed: true,
     favorite: false,
-    art: known?.art ?? (remote ? `${remote}/library_hero.jpg` : ''),
-    featuredArt: known?.featuredArt,
-    cover: known?.cover ?? (remote ? `${remote}/library_600x900_2x.jpg` : ''),
-    logo: known ? known.logo : remote ? `${remote}/logo.png` : null,
-    screenshots: known?.screenshots ?? [],
+    art: remote?.art ?? '',
+    cover: remote?.cover ?? '',
+    // Un jeu dont la bannière contient déjà le titre n'a pas de logo dans le catalogue : on n'en ajoute pas.
+    logo: remote && (!known || known.logo) ? remote.logo : null,
+    screenshots: [],
     sizeGb: input.sizeGb ?? 0,
     hours: Math.round(minutes / 6) / 10,
     lastPlayed: ago(last, now),
@@ -166,7 +168,8 @@ function game(input: RealGameInput, parts: PcPart[], sessions: SessionRecord[], 
     modCount: 0,
     achievements: { done: 0, total: list.length, list },
     friends: [],
-    news: known ? gameNews[known.id] ?? [] : [],
+    // Actualités du catalogue, sans leur image (qui n'est pas publiée) : la bannière du jeu la remplace.
+    news: known ? (gameNews[known.id] ?? []).map((n) => ({ ...n, image: '' })) : [],
     reviews: { percent: 0, count: 0, label: '', list: [] },
     checks: real.checks,
     changes: [],

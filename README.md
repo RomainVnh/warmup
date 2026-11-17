@@ -14,14 +14,10 @@
   <sub>Version 0.4.0 · en développement · Windows et macOS (prototype)</sub>
 </p>
 
-<p align="center">
-  <img src="docs/captures/accueil.jpg" alt="Page d'accueil de Warmup : le jeu à reprendre en grand, puis les jeux récents" width="100%">
-</p>
 
 ## Sommaire
 
 - [La promesse](#la-promesse)
-- [Aperçu](#aperçu)
 - [Fonctionnalités](#fonctionnalités)
 - [État du projet](#état-du-projet)
 - [Installation](#installation)
@@ -32,7 +28,7 @@
 - [Tests](#tests)
 - [Fabriquer les installateurs](#fabriquer-les-installateurs)
 - [Feuille de route](#feuille-de-route)
-- [Avant de rendre le dépôt public](#avant-de-rendre-le-dépôt-public)
+- [Visuels des jeux](#visuels-des-jeux)
 - [Licence](#licence)
 
 ## La promesse
@@ -44,16 +40,6 @@ Trois règles guident tout le reste :
 1. **Expliquer avant d'agir.** Une correction est toujours une action prévue à l'avance, annoncée, annulable et notée dans un journal.
 2. **Rester à l'extérieur des jeux.** Warmup observe le PC, il ne s'introduit jamais dans un jeu : aucun risque avec les systèmes anti-triche.
 3. **Parler simplement.** Pas de jargon : « Votre mémoire tourne moins vite qu'elle ne le peut », pas « XMP désactivé ».
-
-## Aperçu
-
-| Bibliothèque | Fiche d'un jeu |
-| --- | --- |
-| ![Bibliothèque : grille de jaquettes avec recherche et filtres](docs/captures/bibliotheque.jpg) | ![Fiche de Cyberpunk 2077 : bouton « Corriger et jouer », état, succès](docs/captures/fiche-de-jeu.jpg) |
-
-| Premier lancement |
-| --- |
-| ![Premier lancement : bienvenue, compte, PC, jeux, plateformes, préférences](docs/captures/premier-lancement.jpg) |
 
 ## Fonctionnalités
 
@@ -188,10 +174,10 @@ warmup/
 │   └── screens/              Une page par fichier : accueil, bibliothèque, fiche de jeu…
 │
 ├── public/
-│   └── art/<jeu>/            Visuels de chaque jeu : bannière, jaquette, logo, captures, succès, actualités
+│   └── art/<jeu>/            Visuels des jeux d'exemple (non publiés, présents seulement en local)
 │
 ├── build/                    Icônes de l'application (.icns, .ico, .png)
-├── docs/                     Logo et captures utilisés dans ce document
+├── docs/                     Logo utilisé dans ce document
 ├── outils/                   Script d'aide pour ajouter un jeu d'exemple
 │
 ├── AJOUTER-UN-JEU.txt        Ajouter un jeu aux données d'exemple, pas à pas
@@ -269,3 +255,13 @@ Les deux commandes fonctionnent depuis un Mac et déposent leurs fichiers dans `
 - [ ] Serveur : comptes, lien de connexion par e-mail, assistant
 - [ ] Connexions officielles aux plateformes
 - [ ] Signature des installateurs et mise à jour automatique
+
+## Visuels des jeux
+
+Le dépôt ne contient aucun visuel de jeu : jaquettes, logos, captures, icônes de succès et images d'actualités appartiennent à leurs éditeurs. La version vierge les charge directement chez Steam, à partir du numéro de chaque jeu (`shared/catalogue-steam.ts`). La version de test les lit dans `public/art/`, un dossier présent seulement sur le poste de développement ; [`SOURCES.md`](SOURCES.md) indique comment le reconstituer.
+
+## Licence
+
+Tous droits réservés : le code est publié pour être consulté, pas pour être réutilisé. Voir [`LICENSE`](LICENSE).
+
+Les noms, logos et visuels des jeux appartiennent à leurs éditeurs respectifs ; Warmup n'est affilié à aucun d'eux.

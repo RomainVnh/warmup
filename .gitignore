@@ -18,3 +18,8 @@ installateurs/*
 
 # Réglages locaux de l'assistant de code
 .claude/
+
+# Visuels des jeux (jaquettes, captures, icônes de succès, images d'actualités) : ils appartiennent aux éditeurs
+# et ne sont pas publiés. Ils restent sur le poste de développement pour la version de test ; voir SOURCES.md.
+public/art/
+docs/captures/

@@ -1,8 +1,8 @@
 # Sources des données et des visuels
 
-Ce document recense d'où viennent les jeux d'exemple de Warmup : visuels, succès, actualités et fiches. Il sert à retrouver l'origine d'un fichier, à le mettre à jour, et à savoir quoi retirer avant de rendre le dépôt public.
+Ce document recense d'où viennent les jeux d'exemple de Warmup : visuels, succès, actualités et fiches. Il sert à retrouver l'origine d'un fichier, à le mettre à jour. Les visuels eux-mêmes ne sont pas publiés.
 
-> **Droits.** Les noms, logos, jaquettes, captures, icônes de succès et images d'actualités appartiennent aux éditeurs des jeux. Ils servent ici de données d'exemple pour concevoir l'interface. Ils ne doivent pas être publiés ni distribués tels quels.
+> **Droits.** Les noms, logos, jaquettes, captures, icônes de succès et images d'actualités appartiennent aux éditeurs des jeux. **Ils ne sont pas publiés** : le dossier `public/art/` est exclu du dépôt et de son historique, et reste seulement sur le poste de développement pour la version de test. La version vierge charge les visuels directement chez Steam (`shared/catalogue-steam.ts`).
 
 ## Ce qui est réel, ce qui est inventé
 
@@ -112,10 +112,12 @@ python3 outils/ajouter-jeu-steam.py <dossier> <numéro-Steam>
 
 Le script remplace les visuels et les succès du jeu. Les actualités et la fiche (`shared/mock-data.ts`) se complètent à la main. Ajoutez ensuite une ligne au tableau ci-dessus.
 
-## Avant de rendre le dépôt public
+## Reconstituer les visuels en local
 
-Retirer de l'historique ou remplacer par des visuels libres de droits :
+Pour retrouver les visuels de la version de test sur un nouveau poste, relancer le script pour chaque jeu du tableau :
 
-- `public/art/` : tous les visuels de jeux, icônes de succès et images d'actualités ;
-- `docs/captures/` : les captures de l'application, qui montrent ces visuels ;
-- `shared/achievements-data.ts` et `shared/news-data.ts` : les textes recopiés des éditeurs.
+```bash
+python3 outils/ajouter-jeu-steam.py <dossier> <numéro-Steam>
+```
+
+Les images d'actualités se retrouvent avec l'adresse des annonces Steam indiquée plus haut. Ces fichiers restent hors du dépôt (`.gitignore`).

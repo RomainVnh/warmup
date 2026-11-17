@@ -1,0 +1,5 @@
+Fabrication des installateurs sur GitHub : en pause, à reprendre après le nettoyage du stockage du Mac.
+
+installateurs-github.yml fabrique les installateurs Mac et Windows sur les machines de GitHub, puis les publie
+dans les Releases. Il n'est pas actif ici. Pour l'activer, le placer dans .github/workflows/ puis l'envoyer ;
+il se déclenche ensuite à l'envoi d'une étiquette de version (v0.4.0, …) ou depuis l'onglet « Actions ».

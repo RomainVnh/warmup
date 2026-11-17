@@ -1,0 +1,75 @@
+# Fabrication des installateurs sur les machines de GitHub, puis publication dans les Releases.
+# Se déclenche quand une étiquette de version est envoyée (par exemple « v0.4.0 »), ou à la main
+# depuis l'onglet « Actions » du dépôt (bouton « Run workflow »).
+name: Installateurs
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Étiquette de la version à publier (par exemple v0.4.0)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  fabriquer:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            commande: npx electron-builder --mac --publish never
+          - os: windows-latest
+            commande: npx electron-builder --win --x64 --publish never
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: ${{ matrix.commande }}
+        env:
+          # Pas encore de certificat de signature : on ne cherche pas d'identité.
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installateur-${{ matrix.os }}
+          path: |
+            installateurs/*.dmg
+            installateurs/*.exe
+          if-no-files-found: error
+
+  publier:
+    needs: fabriquer
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: fichiers
+          merge-multiple: true
+      - name: Publier dans les Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ github.event.inputs.version || github.ref_name }}
+        run: |
+          ls -la fichiers
+          if gh release view "$VERSION" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release upload "$VERSION" fichiers/* --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$VERSION" fichiers/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Warmup ${VERSION#v}" --notes "Installateurs de Warmup ${VERSION#v}.
+
+          - **Windows 10 ou 11** : le fichier .exe
+          - **macOS (puce Apple)** : le fichier .dmg
+
+          À l'installation, l'application est vierge : elle lit le matériel du PC et cherche les jeux installés (Steam, GOG, Battle.net, Rockstar).
+
+          Les installateurs ne sont pas signés : Windows et macOS affichent un avertissement au premier lancement. La marche à suivre est dans INSTALLER-WARMUP.txt."
+          fi
