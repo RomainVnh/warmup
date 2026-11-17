@@ -933,3 +933,22 @@ a.list-row .link { flex: none; }
 .journal li.undone .strong { color: var(--muted); text-decoration: line-through; }
 .journal li.undone::before { border-color: var(--muted); box-shadow: none; }
 .journal a { text-decoration: underline; }
+
+/* ───── Grands écrans ─────
+   Le contenu suit la largeur de la fenêtre, jusqu'à 1800 points : sur un écran 1920 × 1080, il remplit l'espace
+   au lieu de s'arrêter à 1400 et de laisser une bande vide à droite. La largeur de lecture des textes reste limitée
+   par leurs propres règles. */
+.page, .playbar { max-width: 1800px; }
+.hero, .tabs { max-width: 1760px; }
+.home-hero .hero-body { max-width: 1800px; }
+/* Grilles de jaquettes un peu plus larges quand la place le permet. */
+@media (min-width: 1700px) {
+  .cover-grid, .shelf { grid-template-columns: repeat(auto-fill, minmax(184px, 1fr)); }
+  .hero.compact { min-height: 460px; }
+}
+/* Fenêtres basses (écran 1080 p à 125 %, ou fenêtre réduite) : visuels moins hauts, pour voir le contenu sans défiler. */
+@media (max-height: 820px) {
+  .home-hero { min-height: 540px; }
+  .home-hero .hero-body { padding-bottom: 96px; }
+  .hero.compact { min-height: 340px; }
+}

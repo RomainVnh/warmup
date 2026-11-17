@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, screen, shell } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
 import { snapshot as demoSnapshot } from '../shared/mock-data';
@@ -448,11 +448,17 @@ function registerActions(): void {
 }
 
 function createWindow(): void {
+  // La fenêtre s'adapte à l'écran : sur un écran 1920 × 1080 avec la mise à l'échelle de Windows à 125 %,
+  // la zone utile n'est que d'environ 1536 × 824 points. Elle ne dépasse jamais de l'écran.
+  const area = screen.getPrimaryDisplay().workAreaSize;
+  const width = Math.min(1440, area.width);
+  const height = Math.min(900, area.height);
   const win = new BrowserWindow({
-    width: 1440,
-    height: 900,
-    minWidth: 1100,
-    minHeight: 700,
+    width,
+    height,
+    minWidth: Math.min(1024, area.width),
+    minHeight: Math.min(640, area.height),
+    center: true,
     backgroundColor: '#09090B',
     title: 'Warmup',
     icon: iconFile,
@@ -475,6 +481,9 @@ function createWindow(): void {
     const allowed = devUrl ? url.startsWith(devUrl) : url.startsWith('file://');
     if (!allowed) event.preventDefault();
   });
+
+  // Écran plus petit que la taille prévue : la fenêtre occupe tout l'espace disponible.
+  if (area.width <= 1440 || area.height <= 900) win.maximize();
 
   if (devUrl) void win.loadURL(devUrl);
   else void win.loadFile(path.join(__dirname, '../../dist/index.html'));
