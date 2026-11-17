@@ -82,11 +82,9 @@ const exampleDetection: DetectionReport = {
   example: true,
   stores: [
     { source: 'Steam', found: true, note: '4 jeux installés.' },
-    { source: 'Epic', found: true, note: '1 jeu installé.' },
     { source: 'GOG', found: true, note: '2 jeux installés.' },
     { source: 'Battle.net', found: true, note: '2 jeux installés.' },
-    { source: 'Rockstar', found: true, note: '1 jeu installé.' },
-    { source: 'Riot', found: true, note: '1 jeu installé.' }
+    { source: 'Rockstar', found: true, note: '1 jeu installé.' }
   ],
   games: [
     { source: 'Steam', storeId: '1086940', title: 'Baldur\'s Gate 3', folder: 'D:\\SteamLibrary\\steamapps\\common\\Baldurs Gate 3', sizeGb: 139.6, complete: true, libraryId: 'baldurs-gate-3', canLaunch: true },
@@ -96,10 +94,8 @@ const exampleDetection: DetectionReport = {
     { source: 'Battle.net', storeId: 'fenris', title: 'Diablo IV', folder: 'D:\\Jeux\\Diablo IV', sizeGb: 88.1, complete: true, libraryId: 'diablo-4', canLaunch: true },
     { source: 'Steam', storeId: '1245620', title: 'ELDEN RING', folder: 'D:\\SteamLibrary\\steamapps\\common\\ELDEN RING', sizeGb: 68.9, complete: true, libraryId: 'elden-ring', canLaunch: true },
     { source: 'Rockstar', storeId: 'rdr2', title: 'Red Dead Redemption 2', folder: 'D:\\Rockstar Games\\Red Dead Redemption 2', sizeGb: 121.3, complete: true, libraryId: 'red-dead-redemption-2', canLaunch: true },
-    { source: 'Epic', storeId: 'Sugar', title: 'Rocket League', folder: 'D:\\Epic Games\\rocketleague', sizeGb: 27.4, complete: true, libraryId: null, canLaunch: true },
     { source: 'Steam', storeId: '2246340', title: 'Monster Hunter Wilds', folder: 'D:\\SteamLibrary\\steamapps\\common\\MonsterHunterWilds', sizeGb: 51.3, complete: false, libraryId: 'monster-hunter-wilds', canLaunch: false },
-    { source: 'GOG', storeId: '1207664663', title: 'The Witcher 3: Wild Hunt', folder: 'D:\\GOG Games\\The Witcher 3 Wild Hunt GOTY', sizeGb: null, complete: true, libraryId: 'the-witcher-3', canLaunch: true },
-    { source: 'Riot', storeId: 'valorant.live', title: 'VALORANT', folder: 'C:\\Riot Games\\VALORANT', sizeGb: null, complete: true, libraryId: 'valorant', canLaunch: true }
+    { source: 'GOG', storeId: '1207664663', title: 'The Witcher 3: Wild Hunt', folder: 'D:\\GOG Games\\The Witcher 3 Wild Hunt GOTY', sizeGb: null, complete: true, libraryId: 'the-witcher-3', canLaunch: true }
   ]
 };
 
@@ -202,7 +198,7 @@ const webApi: WarmupApi = {
   },
   getGameFiles: async (gameId) => {
     const game = snapshot.games.find((g) => g.id === gameId);
-    const source = game && ['Steam', 'Epic', 'GOG', 'Battle.net', 'Rockstar', 'Riot'].includes(game.source) ? (game.source as 'Steam') : null;
+    const source = game && ['Steam', 'GOG', 'Battle.net', 'Rockstar'].includes(game.source) ? (game.source as 'Steam') : null;
     return { found: Boolean(game), example: true, folder: game?.location ?? '', sizeGb: game?.sizeGb ?? null, source, canUninstall: Boolean(game), canVerify: source === 'Steam' };
   },
   openGameFolder: () => simulated('Exemple : dans l\'application installée, le dossier du jeu s\'ouvre dans l\'explorateur.'),

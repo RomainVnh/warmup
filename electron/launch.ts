@@ -4,10 +4,10 @@ import { shell } from 'electron';
 import type { LaunchPlan } from './detect/types';
 
 // Ouverture réelle d'un jeu. Seules deux formes existent, toutes deux construites par la détection :
-// une adresse officielle de plateforme, ou un programme lancé avec des arguments fixes.
+// une adresse officielle de Steam, ou un programme lancé avec des arguments fixes.
 // Warmup ouvre le jeu puis reste à l'extérieur : il ne s'y introduit jamais.
 
-const ALLOWED_URL = /^(steam:\/\/(rungameid|uninstall|validate)\/\d{1,10}|steam:\/\/run\/\d{1,10}\/\/[\w%.:+,\-/=]{0,600}\/|com\.epicgames\.launcher:\/\/apps\/[\w.-]{1,80}\?action=launch&silent=true)$/;
+const ALLOWED_URL = /^(steam:\/\/(rungameid|uninstall|validate)\/\d{1,10}|steam:\/\/run\/\d{1,10}\/\/[\w%.:+,\-/=]{0,600}\/)$/;
 
 /** Ajoute les arguments choisis par le joueur (déjà vérifiés par splitArgs) à la manière de lancer. */
 export function withArgs(plan: LaunchPlan, args: string[]): LaunchPlan {

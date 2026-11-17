@@ -1,8 +1,0 @@
-{
-	"AppCategories": ["public", "engines"],
-	"DisplayName": "Unreal Engine",
-	"InstallLocation": "{{DOSSIER}}",
-	"InstallSize": 44120117811,
-	"MainGameAppName": "UE_5.4",
-	"AppName": "UE_5.4"
-}

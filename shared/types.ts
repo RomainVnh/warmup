@@ -387,8 +387,8 @@ export interface GameFiles {
 /** Résultat d'une action sur un jeu : simulated vaut vrai quand rien n'a réellement été fait sur le PC. */
 export interface GameActionResult { ok: boolean; simulated: boolean; message: string }
 
-// Jeux trouvés sur le PC en lisant les fichiers de Steam, Epic et GOG.
-export type DetectSource = 'Steam' | 'Epic' | 'GOG' | 'Battle.net' | 'Rockstar' | 'Riot';
+// Jeux trouvés sur le PC en lisant les fichiers de Steam, GOG, Battle.net et Rockstar.
+export type DetectSource = 'Steam' | 'GOG' | 'Battle.net' | 'Rockstar';
 export interface DetectedGame {
   source: DetectSource;
   /** Numéro ou nom du jeu chez la plateforme. */

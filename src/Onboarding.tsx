@@ -106,7 +106,7 @@ export function Onboarding() {
       body = (
         <>
           {title('Vos jeux installés')}
-          <p className="ob-lead">Warmup lit la liste tenue par Steam, Epic Games, GOG, Battle.net, Rockstar et Riot. Aucun jeu n'est ouvert et aucun compte n'est consulté.</p>
+          <p className="ob-lead">Warmup lit la liste tenue par Steam, GOG, Battle.net et Rockstar. Aucun jeu n'est ouvert et aucun compte n'est consulté.</p>
           <GamesStep report={detection} onReport={setDetection} />
         </>
       );

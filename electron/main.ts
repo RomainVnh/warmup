@@ -367,7 +367,7 @@ function registerActions(): void {
   ipcMain.handle('game:files', async (_event, gameId: unknown): Promise<GameFiles> => {
     const copy = await installedCopy(gameId);
     if (!copy) return { found: false, example: false, folder: '', sizeGb: null, source: null, canUninstall: false, canVerify: false };
-    return { found: true, example: false, folder: copy.folder, sizeGb: copy.sizeGb, source: copy.source === 'Manuel' ? null : copy.source, canUninstall: Boolean(copy.uninstall), canVerify: Boolean(copy.verify) };
+    return { found: true, example: false, folder: copy.folder, sizeGb: copy.sizeGb, source: (['Steam', 'GOG', 'Battle.net', 'Rockstar'] as const).find((name) => name === copy.source) ?? null, canUninstall: Boolean(copy.uninstall), canVerify: Boolean(copy.verify) };
   });
   const notFound: GameActionResult = { ok: false, simulated: false, message: 'Warmup n\'a pas trouvé ce jeu sur ce PC. Relancez la recherche des jeux dans les réglages.' };
   ipcMain.handle('game:open-folder', async (_event, gameId: unknown): Promise<GameActionResult> => {

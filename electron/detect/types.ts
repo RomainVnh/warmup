@@ -3,7 +3,7 @@ import type { DetectSource } from '../../shared/types';
 /**
  * Manière de lancer un jeu, construite par la détection à partir de valeurs vérifiées.
  * Elle reste dans la partie système : l'interface ne la voit jamais et ne peut pas la choisir.
- * - url : adresse officielle de la plateforme (steam://, com.epicgames.launcher://) ;
+ * - url : adresse officielle de Steam (steam://) ;
  * - exe : programme de la plateforme ou du jeu, avec des arguments fixes.
  */
 export type LaunchPlan =

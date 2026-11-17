@@ -82,7 +82,7 @@ export function GameSettings({ game, onClose }: { game: Game; onClose(): void })
   };
 
   const platform = files?.source ?? game.source;
-  const argsUnsupported = platform === 'Epic';
+  const argsUnsupported = (platform as string) === 'Epic';
   const windowLabel = settings.launchWindow ? 'affichée' : 'masquée';
 
   return (

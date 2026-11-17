@@ -210,7 +210,7 @@ export function Library({ initialQuery }: { initialQuery: string }) {
             <button type="button" className="btn" onClick={() => void addGame()}><Icon name="plus" size={14} />Ajouter un jeu</button>
           </>}
         >
-          Warmup n'a encore trouvé aucun jeu. Lancez la recherche : il lit la liste tenue par Steam, Epic Games, GOG, Battle.net, Rockstar et Riot, sans rien modifier.
+          Warmup n'a encore trouvé aucun jeu. Lancez la recherche : il lit la liste tenue par Steam, GOG, Battle.net et Rockstar, sans rien modifier.
         </EmptyState>
       ) : games.length === 0 ? (
         collection && collection.gameIds.length === 0 ? (

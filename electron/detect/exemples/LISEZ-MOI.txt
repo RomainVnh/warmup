@@ -8,12 +8,7 @@ steam-libraryfolders-ancien.vdf même liste, ancien format, avec des chemins Win
 steam-appmanifest_1086940.acf   jeu installé (Baldur's Gate 3)
 steam-appmanifest_2246340.acf   jeu en cours de mise à jour (Monster Hunter Wilds)
 steam-appmanifest_228980.acf    outil de Steam, à ignorer
-epic-jeu.item                   jeu Epic installé
-epic-contenu.item               contenu additionnel, à ignorer
-epic-moteur.item                moteur Unreal, à ignorer
 gog-registre.txt                sortie de « reg query » pour les jeux GOG
 windows-programmes.txt          liste des programmes installés (« reg query » sur Uninstall) :
                                 Battle.net, Diablo IV, un jeu Blizzard inconnu, Rockstar Games Launcher,
                                 Red Dead Redemption 2, GTA V désinstallé à la main, et 7-Zip (à ignorer)
-riot-installs.json              emplacement du Riot Client
-riot-valorant.product_settings.yaml   dossier de VALORANT

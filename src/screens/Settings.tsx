@@ -96,7 +96,7 @@ export function SettingsPage() {
   );
 }
 
-// Recherche des jeux installés : Warmup lit les fichiers tenus par Steam, Epic et GOG, sans rien modifier.
+// Recherche des jeux installés : Warmup lit les fichiers tenus par Steam, GOG, Battle.net et Rockstar, sans rien modifier.
 function Detection() {
   const [report, setReport] = useState<DetectionReport | null>(null);
   const [busy, setBusy] = useState(false);
@@ -130,7 +130,7 @@ function Detection() {
       <div className="list-row" style={{ flexWrap: 'nowrap', gap: 24 }}>
         <div className="grow">
           <div className="strong">Rechercher les jeux installés sur ce PC</div>
-          <div className="small muted" style={{ marginTop: 2 }}>Warmup lit la liste tenue par Steam, Epic Games, GOG, Battle.net, Rockstar et Riot. Rien n'est modifié et aucun jeu n'est ouvert.</div>
+          <div className="small muted" style={{ marginTop: 2 }}>Warmup lit la liste tenue par Steam, GOG, Battle.net et Rockstar. Rien n'est modifié et aucun jeu n'est ouvert.</div>
         </div>
         <button type="button" className="btn" onClick={search} disabled={busy}>
           <Icon name="search" size={14} />{busy ? 'Recherche…' : report ? 'Relancer' : 'Rechercher'}
@@ -219,7 +219,7 @@ function SteamLink() {
             ? <button type="button" className="btn btn-primary" onClick={() => void finish()}>J'ai terminé sur Steam</button>
             : <button type="button" className="btn" disabled={!service} onClick={() => void link()}>Relier</button>}
       </div>
-      <p className="small muted" style={{ paddingTop: 12 }}>Epic Games, GOG, Battle.net, Rockstar et Riot demandent chacun un accord de leur éditeur avant de pouvoir être reliés. Leurs jeux installés sont déjà détectés.</p>
+      <p className="small muted" style={{ paddingTop: 12 }}>GOG, Battle.net et Rockstar demandent chacun un accord de leur éditeur avant de pouvoir être reliés. Leurs jeux installés sont déjà détectés.</p>
     </>
   );
 }
