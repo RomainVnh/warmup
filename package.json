@@ -1,6 +1,6 @@
 {
   "name": "warmup",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "description": "Lanceur de jeux PC qui vérifie que chaque jeu démarre dans de bonnes conditions.",
   "main": "dist-electron/electron/main.js",
