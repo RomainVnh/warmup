@@ -1,0 +1,17 @@
+PresentMon : mesure des images par seconde (Windows)
+
+Warmup mesure les images par seconde avec PresentMon, l'outil libre d'Intel (licence MIT) :
+https://github.com/GameTechDev/PresentMon
+
+Il lit les compteurs que Windows tient pour chaque image affichée, de l'extérieur du jeu.
+Rien n'est injecté dans le jeu : c'est compatible avec les anti-triche.
+
+Ce dossier n'est pas publié avec le programme (il est exclu du dépôt).
+Avant de fabriquer l'installateur Windows :
+1. Télécharger la version console « PresentMon-2.x.x-x64.exe » depuis la page officielle des versions :
+   https://github.com/GameTechDev/PresentMon/releases
+2. La renommer « PresentMon.exe » et la placer dans ce dossier (build/presentmon/).
+3. Joindre la licence MIT de PresentMon dans ce même dossier (fichier LICENSE-PresentMon.txt).
+
+L'installateur copie ce dossier dans les ressources de l'application (package.json, « extraResources »).
+Sans PresentMon, Warmup fonctionne normalement ; le bilan indique seulement que les images par seconde n'ont pas été mesurées.

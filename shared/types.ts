@@ -180,6 +180,10 @@ export interface SessionRecord {
   ping?: { avg: number; max: number; lossPercent: number; samples: number[] };
   /** Carte graphique (NVIDIA uniquement pour l'instant) : température la plus haute en °C et charge moyenne en pour cent. */
   gpu?: { maxTemp: number; avgLoad: number };
+  /** Images par seconde (Windows, par PresentMon) : moyenne, 1 % des images les plus lentes, et valeurs au fil de la partie. */
+  fps?: { avg: number; low1: number; samples: number[] };
+  /** Pourquoi les images par seconde manquent : outil absent, autorisation de Windows refusée, échec, ou système autre que Windows. */
+  fpsMissing?: 'absent' | 'autorisation' | 'echec' | 'windows';
 }
 
 /** Une ligne du journal : ce que Warmup a modifié sur le PC. */

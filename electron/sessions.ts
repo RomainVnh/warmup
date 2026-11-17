@@ -3,11 +3,13 @@ import os from 'node:os';
 import path from 'node:path';
 import type { SessionRecord } from '../shared/types';
 import { pathKey } from './detect/files';
+import { watchFps, type FpsMissing, type FpsWatch } from './fps';
 import { readJson, writeJson } from './store';
 
 // Suivi des vraies parties, de l'extérieur du jeu : Warmup regarde seulement la liste des programmes ouverts.
 // Une partie commence quand un programme rangé dans le dossier du jeu apparaît, et finit quand il n'y en a plus.
-// Pendant la partie, il relève la mémoire utilisée par le jeu et la charge du processeur. Il ne lit rien dans le jeu.
+// Pendant la partie, il relève la mémoire utilisée par le jeu, la charge du processeur et, sous Windows, les images
+// par seconde (electron/fps.ts, par les compteurs de Windows). Il ne lit rien dans le jeu.
 
 const FILE = 'sessions.json';
 const POLL_MS = 5000;
@@ -15,7 +17,7 @@ const POLL_MS = 5000;
 const WAIT_MS = 5 * 60_000;
 const MAX_RECORDS = 1000;
 
-export interface Proc { path: string; memMb: number }
+export interface Proc { path: string; memMb: number; pid?: number }
 
 function run(file: string, args: string[]): Promise<string> {
   return new Promise((resolve) => {
@@ -29,32 +31,39 @@ export function parseWindowsProcesses(json: string): Proc[] {
     const raw: unknown = JSON.parse(json);
     const list = Array.isArray(raw) ? raw : [raw];
     return list
-      .filter((p): p is { ExecutablePath: string; WorkingSetSize?: number } => Boolean(p) && typeof (p as { ExecutablePath?: unknown }).ExecutablePath === 'string')
-      .map((p) => ({ path: p.ExecutablePath, memMb: Math.round((Number(p.WorkingSetSize) || 0) / 1024 ** 2) }));
+      .filter((p): p is { ExecutablePath: string; WorkingSetSize?: number; ProcessId?: number } => Boolean(p) && typeof (p as { ExecutablePath?: unknown }).ExecutablePath === 'string')
+      .map((p) => {
+        const proc: Proc = { path: p.ExecutablePath, memMb: Math.round((Number(p.WorkingSetSize) || 0) / 1024 ** 2) };
+        if (Number.isInteger(p.ProcessId) && Number(p.ProcessId) > 0) proc.pid = Number(p.ProcessId);
+        return proc;
+      });
   } catch {
     return [];
   }
 }
 
-/** Sortie de « ps -axo rss=,comm= » (Mac, Linux) : mémoire en Ko, puis emplacement du programme. */
+/** Sortie de « ps -axo pid=,rss=,comm= » (Mac, Linux) : numéro du programme (facultatif), mémoire en Ko, emplacement. */
 export function parsePs(text: string): Proc[] {
   const list: Proc[] = [];
   for (const line of text.split('\n')) {
-    const match = /^\s*(\d+)\s+(\/.+)$/.exec(line);
-    if (match) list.push({ path: match[2].trim(), memMb: Math.round(Number(match[1]) / 1024) });
+    const match = /^\s*(?:(\d+)\s+)?(\d+)\s+(\/.+)$/.exec(line);
+    if (!match) continue;
+    const proc: Proc = { path: match[3].trim(), memMb: Math.round(Number(match[2]) / 1024) };
+    if (match[1]) proc.pid = Number(match[1]);
+    list.push(proc);
   }
   return list;
 }
 
 // Commande fixe : emplacement et mémoire de chaque programme ouvert.
-const WINDOWS_QUERY = 'Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath } | Select-Object ExecutablePath,WorkingSetSize | ConvertTo-Json -Compress';
+const WINDOWS_QUERY = 'Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath } | Select-Object ProcessId,ExecutablePath,WorkingSetSize | ConvertTo-Json -Compress';
 
 async function listProcesses(): Promise<Proc[]> {
   if (process.platform === 'win32') {
     const powershell = path.join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
     return parseWindowsProcesses(await run(powershell, ['-NoProfile', '-NonInteractive', '-Command', WINDOWS_QUERY]));
   }
-  return parsePs(await run('/bin/ps', ['-axo', 'rss=,comm=']));
+  return parsePs(await run('/bin/ps', ['-axo', 'pid=,rss=,comm=']));
 }
 
 /** Temps de réponse lu dans la sortie de « ping » (Windows en français ou en anglais, Mac, Linux) ; null sans réponse. */
@@ -144,6 +153,9 @@ interface Watch {
   pings: (number | null)[];
   gpuTemps: number[];
   gpuLoads: number[];
+  /** Images par seconde de chaque relevé (null : aucune image vue), et la mesure en cours. */
+  fps: (number | null)[];
+  fpsWatch: FpsWatch | null;
   lastCpu: { busy: number; total: number };
   timer: ReturnType<typeof setInterval>;
   onEnd: (record: SessionRecord | null) => void;
@@ -151,12 +163,21 @@ interface Watch {
 
 let watch: Watch | null = null;
 
+/** Emplacement de PresentMon, fixé par la partie système au démarrage (null s'il n'est pas livré). */
+let fpsTool: string | null = null;
+export const setFpsTool = (file: string | null): void => {
+  fpsTool = file;
+};
+
 function finish(): void {
   if (!watch) return;
   const w = watch;
   clearInterval(w.timer);
   watch = null;
-  if (w.start === null) return w.onEnd(null); // le jeu n'est jamais apparu
+  if (w.start === null) {
+    w.fpsWatch?.stop();
+    return w.onEnd(null); // le jeu n'est jamais apparu
+  }
   const seconds = Math.max(1, Math.round((w.lastSeen - w.start) / 1000));
   const record: SessionRecord = {
     id: `${w.gameId}-${w.start}`.slice(0, 80),
@@ -177,6 +198,11 @@ function finish(): void {
       samples: thin(answered)
     };
   }
+  const frames = w.fpsWatch?.stats.summary() ?? null;
+  const missing: FpsMissing | null = w.fpsWatch ? w.fpsWatch.missing() : process.platform !== 'win32' ? 'windows' : fpsTool ? 'echec' : 'absent';
+  w.fpsWatch?.stop();
+  if (frames) record.fps = { ...frames, samples: thin(w.fps.filter((v): v is number => v !== null)) };
+  else if (missing) record.fpsMissing = missing;
   if (w.gpuTemps.length) record.gpu = { maxTemp: Math.max(...w.gpuTemps), avgLoad: Math.round(w.gpuLoads.reduce((a, b) => a + b, 0) / w.gpuLoads.length) };
   records = [...records, record].slice(-MAX_RECORDS);
   writeJson(FILE, records);
@@ -191,7 +217,14 @@ async function poll(): Promise<void> {
   if (watch !== w) return; // un autre lancement a pris le relais pendant le relevé
   const now = Date.now();
   if (mine.length) {
-    if (w.start === null) w.start = now;
+    if (w.start === null) {
+      w.start = now;
+      // Images par seconde : le programme du jeu qui occupe le plus de mémoire est celui qui affiche les images.
+      const main = [...mine].sort((a, b) => b.memMb - a.memMb).find((p) => p.pid);
+      if (main?.pid) w.fpsWatch = watchFps(fpsTool, main.pid);
+    } else if (w.fpsWatch) {
+      w.fps.push(w.fpsWatch.stats.takeWindow());
+    }
     w.lastSeen = now;
     w.misses = 0;
     w.mem.push(mine.reduce((sum, p) => sum + p.memMb, 0));
@@ -228,6 +261,8 @@ export function trackGame(gameId: string, folder: string, onEnd: (record: Sessio
     pings: [],
     gpuTemps: [],
     gpuLoads: [],
+    fps: [],
+    fpsWatch: null,
     lastCpu: cpuNow(),
     timer: setInterval(() => void poll(), POLL_MS),
     onEnd

@@ -23,3 +23,6 @@ installateurs/*
 # et ne sont pas publiés. Ils restent sur le poste de développement pour la version de test ; voir SOURCES.md.
 public/art/
 docs/captures/
+
+# PresentMon : ajouté seulement au moment de fabriquer l installateur Windows (voir build/presentmon/LISEZ-MOI.txt)
+build/presentmon/*.exe

@@ -72,6 +72,17 @@ export function incident(s: SessionRecord): { cause: Report['cause']; headline: 
   return null;
 }
 
+/** Phrase ajoutée au bilan quand les images par seconde n'ont pas pu être mesurées. */
+export function fpsNote(s: SessionRecord): string {
+  switch (s.fpsMissing) {
+    case 'autorisation': return ' Les images par seconde n\'ont pas été mesurées : Windows demande une autorisation, que le diagnostic peut donner en un clic.';
+    case 'absent': return ' Les images par seconde n\'ont pas été mesurées : l\'outil de mesure manque. Réinstallez Warmup pour le retrouver.';
+    case 'echec': return ' Les images par seconde n\'ont pas pu être mesurées pendant cette partie.';
+    case 'windows': return ' Les images par seconde ne se mesurent que sous Windows.';
+    default: return '';
+  }
+}
+
 function report(s: SessionRecord, title: string, now: number): Report {
   const short = tooShort(s);
   const issue = incident(s);
@@ -88,8 +99,9 @@ function report(s: SessionRecord, title: string, now: number): Report {
     headline: short ? `${title} s'est fermé au bout de ${Math.max(1, Math.round(s.seconds))} secondes` : issue ? issue.headline : `Partie de ${duration(s.seconds)} sans incident repéré`,
     text: short
       ? 'Le jeu s\'est arrêté moins d\'une minute après son lancement. Cela arrive quand il plante au démarrage, ou quand on le ferme tout de suite.'
-      : issue ? issue.text : 'Warmup a suivi la partie de l\'extérieur du jeu : durée, mémoire, processeur, réseau et, avec une carte NVIDIA, température de la carte graphique. Les images par seconde ne sont pas encore mesurées.',
+      : issue ? issue.text : `Warmup a suivi la partie de l'extérieur du jeu : durée, ${s.fps ? 'images par seconde, ' : ''}mémoire, processeur, réseau et, avec une carte NVIDIA, température de la carte graphique.${fpsNote(s)}`,
     tiles: [
+      ...(s.fps ? [{ big: `${s.fps.avg} i/s`, label: 'Images par seconde, en moyenne' }, { big: `${s.fps.low1} i/s`, label: 'Dans les moments les plus lents (1 % des images)' }] : []),
       { big: duration(s.seconds), label: 'Durée de la partie' },
       { big: peak, label: 'Mémoire du jeu, au plus haut' },
       { big: s.avgCpu === null ? 'Non mesurée' : `${Math.round(s.avgCpu)} %`, label: 'Charge moyenne du processeur' },

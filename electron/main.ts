@@ -12,7 +12,7 @@ import { isAdmin } from './admin';
 import { forcedTest } from './mode';
 import { hasSession, loadSession, onlineAdmin, pushData, requestCode, serviceAvailable, signOut, startSteamLink, unlinkSteam, verifyCode } from './online';
 import { readJson, writeJson } from './store';
-import { loadSessions, stopTracking, trackGame } from './sessions';
+import { loadSessions, setFpsTool, stopTracking, trackGame } from './sessions';
 import { simulateLaunch } from '../shared/launch-sim';
 import { cleanFavorites, isEmail, type LoginResult, cleanAccount, cleanAllGameOptions, cleanGameOptions, cleanCollections, defaultGameOptions, splitArgs, cleanProfileCard, defaultAccount, defaultProfileCard, defaultSettings, settingKeys, type Account, type Collection, type GameActionResult, type GameFiles, type GameOptions, type LaunchEvent, type PcReport, type ProfileCard, type Settings, type Snapshot, type Source } from '../shared/types';
 
@@ -494,6 +494,8 @@ app.whenReady().then(() => {
   profileCard = readProfileCard();
   // Annulation d'une correction d'alimentation depuis le journal : le mode d'origine est rétabli tout de suite.
   registerUndo('alimentation', (entry) => restorePower(entry.data ?? ''));
+  // Images par seconde : PresentMon est livré avec l'installateur Windows, à un emplacement fixe.
+  setFpsTool(app.isPackaged ? path.join(process.resourcesPath, 'presentmon', 'PresentMon.exe') : path.join(__dirname, '../../build/presentmon/PresentMon.exe'));
   account = readAccount();
   loadSession();
   if (serviceAvailable() && !hasSession()) account = { ...account, signedIn: false };
