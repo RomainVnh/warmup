@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { ago, buildRealSnapshot, duration, type RealGameInput } from '../shared/real-data';
+import { ago, buildRealSnapshot, duration, incident, type RealGameInput } from '../shared/real-data';
 import type { SessionRecord } from '../shared/types';
 import { readPlaytime } from './detect/steam';
 import { cleanJournal } from './journal';
 import { cleanManualGames, slug } from './library';
-import { cleanSessions, insideFolder, parsePs, parseWindowsProcesses, thin } from './sessions';
+import { cleanSessions, insideFolder, parseNvidia, parsePing, parsePs, parseWindowsProcesses, thin } from './sessions';
 
 // Version vierge : tout ce qui est affiché doit venir du PC. Ces tests vérifient les lectures et les calculs, sans PC Windows.
 
@@ -100,4 +100,25 @@ test('bibliothèque vierge : rien d\'inventé, heures et parties réelles', () =
   assert.equal(snap.week.total, '1 h 31'); // 5400 s + 30 s
   assert.equal(snap.week.cleanLaunches, '1 sur 2');
   assert.equal(snap.week.hours[2], 1.5); // mercredi
+});
+
+test('mesures en jeu : ping et carte graphique', () => {
+  assert.equal(parsePing('Réponse de 1.1.1.1 : octets=32 temps=14 ms TTL=57'), 14);
+  assert.equal(parsePing('Reply from 1.1.1.1: bytes=32 time<1ms TTL=57'), 1);
+  assert.equal(parsePing('64 bytes from 1.1.1.1: icmp_seq=0 ttl=57 time=12.6 ms'), 13);
+  assert.equal(parsePing('Délai d\'attente de la demande dépassé.'), null);
+  assert.deepEqual(parseNvidia('67, 93\n'), { temp: 67, load: 93 });
+  assert.equal(parseNvidia('nvidia-smi introuvable'), null);
+});
+
+test('incidents repérés pendant une partie', () => {
+  const calm = { ...session('jeu', NOW, 3600), ping: { avg: 18, max: 41, lossPercent: 0, samples: [18, 20] }, gpu: { maxTemp: 71, avgLoad: 88 } };
+  assert.equal(incident(calm), null);
+  assert.equal(incident({ ...calm, ping: { avg: 30, max: 240, lossPercent: 0, samples: [] } })?.cause, 'Réseau');
+  assert.equal(incident({ ...calm, ping: { avg: 30, max: 60, lossPercent: 6, samples: [] } })?.cause, 'Réseau');
+  assert.equal(incident({ ...calm, gpu: { maxTemp: 91, avgLoad: 99 } })?.cause, 'Surchauffe');
+  // Dans le bilan : la cause, un conseil, et la partie n'est plus comptée « sans incident ».
+  const snap = buildRealSnapshot({ games: [input({ id: 'jeu' })], parts: [], sessions: [{ ...calm, ping: { avg: 30, max: 240, lossPercent: 0, samples: [30, 240] } }], journal: [], now: NOW });
+  assert.deepEqual([snap.reports[0].ok, snap.reports[0].cause, snap.reports[0].advice?.href], [false, 'Réseau', '#/guide/box']);
+  assert.equal(snap.week.cleanLaunches, '0 sur 1');
 });

@@ -50,8 +50,30 @@ const clock = (at: number) => new Date(at).toLocaleTimeString('fr-FR', { hour: '
 /** Une partie fermée moins d'une minute après son lancement est signalée : c'est le seul incident que Warmup sait voir pour l'instant. */
 const tooShort = (s: SessionRecord) => s.seconds < 60;
 
+/** Seuils au-delà desquels une mesure est signalée comme un incident. */
+const PING_SPIKE = 150; // ms
+const LOSS_LIMIT = 3; // % d'essais sans réponse
+const GPU_HOT = 87; // °C
+
+/** Incident repéré pendant une partie, du plus gênant au moins gênant ; null si tout va bien. */
+export function incident(s: SessionRecord): { cause: Report['cause']; headline: string; text: string } | null {
+  if (tooShort(s)) return null; // traité à part : le jeu s'est fermé presque aussitôt
+  if (s.gpu && s.gpu.maxTemp >= GPU_HOT) {
+    return { cause: 'Surchauffe', headline: `La carte graphique est montée à ${s.gpu.maxTemp} °C`, text: 'Au-delà de 87 °C, la carte graphique ralentit pour se protéger, ce qui fait baisser les images par seconde. Vérifiez que l\'air circule bien dans le boîtier et que les ventilateurs ne sont pas encrassés.' };
+  }
+  if (s.ping && (s.ping.lossPercent >= LOSS_LIMIT || s.ping.max >= PING_SPIKE)) {
+    return {
+      cause: 'Réseau',
+      headline: s.ping.lossPercent >= LOSS_LIMIT ? `La connexion a perdu ${s.ping.lossPercent} % des échanges` : `Le ping est monté à ${s.ping.max} ms`,
+      text: 'Le réseau a été instable pendant la partie : c\'est ce qui cause les saccades et les retards dans les jeux en ligne. Le PC n\'est pas en cause. Un branchement par câble, ou la priorité donnée au PC sur la box, règle souvent le problème.'
+    };
+  }
+  return null;
+}
+
 function report(s: SessionRecord, title: string, now: number): Report {
   const short = tooShort(s);
+  const issue = incident(s);
   const peak = s.peakMemMb ? `${(s.peakMemMb / 1024).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Go` : 'Non mesurée';
   const values = s.samples.length > 1 ? s.samples.map((mb) => Math.round(mb / 102.4) / 10) : [0, 0];
   return {
@@ -60,16 +82,18 @@ function report(s: SessionRecord, title: string, now: number): Report {
     date: ago(s.start, now),
     when: `${dateTime(s.start)} – ${clock(s.end)}`,
     length: duration(s.seconds),
-    ok: !short,
-    cause: 'Aucun incident',
-    headline: short ? `${title} s'est fermé au bout de ${Math.max(1, Math.round(s.seconds))} secondes` : `Partie de ${duration(s.seconds)} sans incident repéré`,
+    ok: !short && !issue,
+    cause: issue?.cause ?? 'Aucun incident',
+    headline: short ? `${title} s'est fermé au bout de ${Math.max(1, Math.round(s.seconds))} secondes` : issue ? issue.headline : `Partie de ${duration(s.seconds)} sans incident repéré`,
     text: short
       ? 'Le jeu s\'est arrêté moins d\'une minute après son lancement. Cela arrive quand il plante au démarrage, ou quand on le ferme tout de suite.'
-      : 'Warmup a suivi la partie de l\'extérieur du jeu : durée, mémoire utilisée et charge du processeur. Les images par seconde et le ping ne sont pas encore mesurés.',
+      : issue ? issue.text : 'Warmup a suivi la partie de l\'extérieur du jeu : durée, mémoire, processeur, réseau et, avec une carte NVIDIA, température de la carte graphique. Les images par seconde ne sont pas encore mesurées.',
     tiles: [
       { big: duration(s.seconds), label: 'Durée de la partie' },
       { big: peak, label: 'Mémoire du jeu, au plus haut' },
-      { big: s.avgCpu === null ? 'Non mesurée' : `${Math.round(s.avgCpu)} %`, label: 'Charge moyenne du processeur' }
+      { big: s.avgCpu === null ? 'Non mesurée' : `${Math.round(s.avgCpu)} %`, label: 'Charge moyenne du processeur' },
+      ...(s.ping ? [{ big: `${s.ping.avg} ms`, label: `Ping moyen (au plus haut : ${s.ping.max} ms)` }, { big: `${s.ping.lossPercent} %`, label: 'Échanges perdus sur le réseau' }] : []),
+      ...(s.gpu ? [{ big: `${s.gpu.maxTemp} °C`, label: `Carte graphique, au plus chaud (charge moyenne ${s.gpu.avgLoad} %)` }] : [])
     ],
     chart: {
       title: 'Mémoire utilisée par le jeu',
@@ -84,7 +108,7 @@ function report(s: SessionRecord, title: string, now: number): Report {
       { time: clock(s.start), title: 'Jeu lancé', text: 'Warmup a vu le jeu démarrer.', ok: true },
       { time: clock(s.end), title: short ? 'Jeu fermé presque aussitôt' : 'Jeu fermé', text: short ? 'Moins d\'une minute après le lancement.' : `Après ${duration(s.seconds)}.`, ok: !short }
     ],
-    advice: short ? { title: 'Si le jeu plante au démarrage', text: 'Vérifiez ses fichiers depuis les paramètres du jeu, puis relancez-le.', action: 'Ouvrir la fiche du jeu', href: `#/game/${s.gameId}` } : null
+    advice: issue?.cause === 'Réseau' ? { title: 'Donner la priorité au PC de jeu sur votre box', text: 'Un guide pas à pas, en dix minutes.', action: 'Voir le guide', href: '#/guide/box' } : short ? { title: 'Si le jeu plante au démarrage', text: 'Vérifiez ses fichiers depuis les paramètres du jeu, puis relancez-le.', action: 'Ouvrir la fiche du jeu', href: `#/game/${s.gameId}` } : null
   };
 }
 
@@ -146,7 +170,7 @@ function game(input: RealGameInput, parts: PcPart[], sessions: SessionRecord[], 
     reviews: { percent: 0, count: 0, label: '', list: [] },
     checks: real.checks,
     changes: [],
-    sessions: mine.slice(0, 8).map((s): Session => ({ date: ago(s.start, now), length: duration(s.seconds), result: tooShort(s) ? 'Fermé presque aussitôt' : 'Sans incident repéré', ok: !tooShort(s) })),
+    sessions: mine.slice(0, 8).map((s): Session => ({ date: ago(s.start, now), length: duration(s.seconds), result: tooShort(s) ? 'Fermé presque aussitôt' : incident(s)?.headline ?? 'Sans incident repéré', ok: !tooShort(s) && !incident(s) })),
     launch: {
       steps: real.steps,
       resultTitle: `${real.steps.length} points vérifiés`,
@@ -187,7 +211,7 @@ export function buildRealSnapshot({ games, parts, sessions, journal, now, steam 
   const hours = [0, 0, 0, 0, 0, 0, 0];
   for (const s of week) hours[(new Date(s.start).getDay() + 6) % 7] += s.seconds / 3600;
   const totalMinutes = Math.round(week.reduce((sum, s) => sum + s.seconds, 0) / 60);
-  const clean = week.filter((s) => !tooShort(s)).length;
+  const clean = week.filter((s) => !tooShort(s) && !incident(s)).length;
 
   const titleOf = (id: string) => list.find((g) => g.id === id)?.title ?? 'Le jeu';
   return {

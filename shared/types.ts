@@ -176,6 +176,10 @@ export interface SessionRecord {
   avgCpu: number | null;
   /** Mémoire du jeu au fil de la partie, en Mo (48 valeurs au plus). */
   samples: number[];
+  /** Réseau pendant la partie : temps de réponse d'un serveur public, en ms, et part des essais sans réponse. */
+  ping?: { avg: number; max: number; lossPercent: number; samples: number[] };
+  /** Carte graphique (NVIDIA uniquement pour l'instant) : température la plus haute en °C et charge moyenne en pour cent. */
+  gpu?: { maxTemp: number; avgLoad: number };
 }
 
 /** Une ligne du journal : ce que Warmup a modifié sur le PC. */

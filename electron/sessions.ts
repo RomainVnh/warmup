@@ -57,6 +57,37 @@ async function listProcesses(): Promise<Proc[]> {
   return parsePs(await run('/bin/ps', ['-axo', 'rss=,comm=']));
 }
 
+/** Temps de réponse lu dans la sortie de « ping » (Windows en français ou en anglais, Mac, Linux) ; null sans réponse. */
+export function parsePing(text: string): number | null {
+  const match = /(?:time|temps)\s*[=<]\s*(\d+(?:[.,]\d+)?)\s*ms/i.exec(text);
+  return match ? Math.round(Number(match[1].replace(',', '.'))) : null;
+}
+
+/** Sortie de « nvidia-smi --query-gpu=temperature.gpu,utilization.gpu --format=csv,noheader,nounits » : « 67, 93 ». */
+export function parseNvidia(text: string): { temp: number; load: number } | null {
+  const match = /^\s*(\d{1,3})\s*,\s*(\d{1,3})\s*$/m.exec(text);
+  return match ? { temp: Number(match[1]), load: Number(match[2]) } : null;
+}
+
+// Réseau : un seul essai vers un serveur public (Cloudflare), à chaque relevé. Aucune donnée du joueur n'est envoyée.
+const PING_TARGET = '1.1.1.1';
+async function pingOnce(): Promise<number | null> {
+  const windows = process.platform === 'win32';
+  const file = windows ? path.join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'PING.EXE') : '/sbin/ping';
+  const args = windows ? ['-n', '1', '-w', '1500', PING_TARGET] : process.platform === 'darwin' ? ['-c', '1', '-W', '1500', PING_TARGET] : ['-c', '1', '-W', '2', PING_TARGET];
+  return parsePing(await run(file, args));
+}
+
+// Carte graphique : l'outil fourni avec les pilotes NVIDIA, s'il est présent. Sans lui, rien n'est relevé.
+let nvidiaMissing = false;
+async function gpuOnce(): Promise<{ temp: number; load: number } | null> {
+  if (nvidiaMissing || process.platform !== 'win32') return null;
+  const tool = path.join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'nvidia-smi.exe');
+  const out = await run(tool, ['--query-gpu=temperature.gpu,utilization.gpu', '--format=csv,noheader,nounits']);
+  if (!out) nvidiaMissing = true;
+  return parseNvidia(out);
+}
+
 /** Programmes rangés dans le dossier du jeu. */
 export function insideFolder(procs: Proc[], folder: string): Proc[] {
   const root = pathKey(folder);
@@ -109,6 +140,10 @@ interface Watch {
   misses: number;
   mem: number[];
   cpu: number[];
+  /** Un essai par relevé : temps en ms, ou null sans réponse. */
+  pings: (number | null)[];
+  gpuTemps: number[];
+  gpuLoads: number[];
   lastCpu: { busy: number; total: number };
   timer: ReturnType<typeof setInterval>;
   onEnd: (record: SessionRecord | null) => void;
@@ -133,6 +168,16 @@ function finish(): void {
     avgCpu: w.cpu.length ? Math.round(w.cpu.reduce((a, b) => a + b, 0) / w.cpu.length) : null,
     samples: thin(w.mem)
   };
+  const answered = w.pings.filter((p): p is number => p !== null);
+  if (w.pings.length >= 3 && answered.length) {
+    record.ping = {
+      avg: Math.round(answered.reduce((a, b) => a + b, 0) / answered.length),
+      max: Math.max(...answered),
+      lossPercent: Math.round(((w.pings.length - answered.length) / w.pings.length) * 100),
+      samples: thin(answered)
+    };
+  }
+  if (w.gpuTemps.length) record.gpu = { maxTemp: Math.max(...w.gpuTemps), avgLoad: Math.round(w.gpuLoads.reduce((a, b) => a + b, 0) / w.gpuLoads.length) };
   records = [...records, record].slice(-MAX_RECORDS);
   writeJson(FILE, records);
   w.onEnd(record);
@@ -141,7 +186,8 @@ function finish(): void {
 async function poll(): Promise<void> {
   const w = watch;
   if (!w) return;
-  const mine = insideFolder(await listProcesses(), w.folder);
+  const [procs, ping, gpu] = await Promise.all([listProcesses(), w.start !== null ? pingOnce() : Promise.resolve(undefined), w.start !== null ? gpuOnce() : Promise.resolve(null)]);
+  const mine = insideFolder(procs, w.folder);
   if (watch !== w) return; // un autre lancement a pris le relais pendant le relevé
   const now = Date.now();
   if (mine.length) {
@@ -153,6 +199,11 @@ async function poll(): Promise<void> {
     const total = cpu.total - w.lastCpu.total;
     if (total > 0) w.cpu.push(((cpu.busy - w.lastCpu.busy) / total) * 100);
     w.lastCpu = cpu;
+    if (ping !== undefined) w.pings.push(ping);
+    if (gpu) {
+      w.gpuTemps.push(gpu.temp);
+      w.gpuLoads.push(gpu.load);
+    }
   } else if (w.start !== null) {
     w.misses += 1;
     if (w.misses >= 2) finish(); // deux relevés de suite sans le jeu : la partie est finie
@@ -174,6 +225,9 @@ export function trackGame(gameId: string, folder: string, onEnd: (record: Sessio
     misses: 0,
     mem: [],
     cpu: [],
+    pings: [],
+    gpuTemps: [],
+    gpuLoads: [],
     lastCpu: cpuNow(),
     timer: setInterval(() => void poll(), POLL_MS),
     onEnd
