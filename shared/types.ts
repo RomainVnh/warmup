@@ -130,10 +130,6 @@ export interface Report {
 
 export interface ModSet { gameId: string; headline: string; text: string; list: Mod[]; snapshots: ModSnapshot[] }
 
-export type DownloadState = 'active' | 'queued' | 'paused' | 'done' | 'failed';
-/** error : pourquoi le téléchargement a échoué, en clair (seulement quand state vaut « failed »). */
-export interface Download { id: string; gameId: string; kind: 'install' | 'update'; label: string; sizeGb: number; doneGb: number; state: DownloadState; when: string; error?: string }
-
 export type NoticeKind = 'update' | 'friend' | 'achievement' | 'fix';
 export interface Notice {
   id: string;
@@ -198,6 +194,8 @@ export interface JournalEntry {
 export interface Snapshot {
   /** Vrai : version de test, avec des jeux, des amis et des chiffres d'exemple. Faux : uniquement ce qui est lu sur ce PC. */
   demo: boolean;
+  /** Compte Steam relié par sa page officielle : amis et succès obtenus en viennent. */
+  steam: { linked: boolean; name: string };
   games: Game[];
   week: { hours: number[]; total: string; cleanLaunches: string; fixes: string };
   pc: { parts: PcPart[]; issues: PcIssue[]; servers: ServerState[]; log: FixLog[] };
@@ -206,7 +204,6 @@ export interface Snapshot {
   /** Bilans de toutes les parties, du plus récent au plus ancien. */
   reports: Report[];
   friends: FriendStatus[];
-  downloads: { items: Download[]; speedMbPerSec: number; diskFreeGb: number; diskTotalGb: number };
   notices: Notice[];
   guides: Guide[];
   profile: Profile;
@@ -215,7 +212,6 @@ export interface Snapshot {
 export interface Settings {
   launchWindow: boolean;
   askBeforeFix: boolean;
-  pauseDownloads: boolean;
   shareCatalog: boolean;
   startWithWindows: boolean;
 }
@@ -223,7 +219,6 @@ export interface Settings {
 export const defaultSettings: Settings = {
   launchWindow: true,
   askBeforeFix: true,
-  pauseDownloads: true,
   shareCatalog: false,
   startWithWindows: false
 };
@@ -322,6 +317,14 @@ export function cleanAccount(input: unknown, base: Account): Account {
   return next;
 }
 
+/** Favoris : identifiants de jeux bien formés, sans doublon, 500 au plus. */
+export function cleanFavorites(input: unknown): string[] {
+  return Array.isArray(input) ? [...new Set(input.filter((id): id is string => typeof id === 'string' && GAME_ID.test(id)))].slice(0, 500) : [];
+}
+
+/** Résultat d'une demande au service en ligne de Warmup. */
+export interface LoginResult { ok: boolean; message: string; account?: Account }
+
 // Options de lancement propres à un jeu (bouton « Paramètres » de sa fiche).
 export type LaunchWindowChoice = 'default' | 'always' | 'never';
 export interface GameOptions {
@@ -417,6 +420,15 @@ export interface WarmupApi {
   setCollections(list: Collection[]): Promise<Collection[]>;
   getAccount(): Promise<Account>;
   setAccount(patch: Partial<Account>): Promise<Account>;
+  /** Ouvre la page officielle de connexion de Steam dans le navigateur. Warmup ne voit jamais le mot de passe. */
+  linkSteam(): Promise<LoginResult>;
+  unlinkSteam(): Promise<LoginResult>;
+  getFavorites(): Promise<string[]>;
+  setFavorites(ids: string[]): Promise<string[]>;
+  /** online vaut vrai quand le service en ligne de Warmup est configuré : la connexion passe alors par un code reçu par e-mail. */
+  getAccountService(): Promise<{ online: boolean }>;
+  requestLoginCode(email: string): Promise<LoginResult>;
+  verifyLoginCode(email: string, code: string): Promise<LoginResult>;
   /** Ajoute un jeu à la main : la partie système ouvre le sélecteur de fichiers, l'interface ne transmet aucun chemin. */
   addGame(): Promise<GameActionResult & { gameId?: string }>;
   renameGame(gameId: string, title: string): Promise<GameActionResult>;

@@ -6,12 +6,14 @@ import { detectAll, type MatchedGame } from './detect';
 import { readPc } from './hardware';
 import { journal, loadDemoJournal, loadJournal, logAction, undo } from './journal';
 import { openFolder, openGame, withArgs } from './launch';
-import { addManualGame, findLibraryGame, loadManualGames, realSnapshot, refreshLibrary, removeManualGame, renameManualGame } from './library';
+import { addManualGame, findLibraryGame, loadManualGames, realSnapshot, refreshLibrary, refreshSteam, removeManualGame, renameManualGame } from './library';
 import { isAdmin } from './admin';
 import { forcedTest } from './mode';
+import { hasSession, loadSession, onlineAdmin, pushData, requestCode, serviceAvailable, signOut, startSteamLink, unlinkSteam, verifyCode } from './online';
+import { readJson, writeJson } from './store';
 import { loadSessions, stopTracking, trackGame } from './sessions';
 import { simulateLaunch } from '../shared/launch-sim';
-import { cleanAccount, cleanAllGameOptions, cleanGameOptions, cleanCollections, defaultGameOptions, splitArgs, cleanProfileCard, defaultAccount, defaultProfileCard, defaultSettings, settingKeys, type Account, type Collection, type GameActionResult, type GameFiles, type GameOptions, type LaunchEvent, type PcReport, type ProfileCard, type Settings, type Snapshot, type Source } from '../shared/types';
+import { cleanFavorites, isEmail, type LoginResult, cleanAccount, cleanAllGameOptions, cleanGameOptions, cleanCollections, defaultGameOptions, splitArgs, cleanProfileCard, defaultAccount, defaultProfileCard, defaultSettings, settingKeys, type Account, type Collection, type GameActionResult, type GameFiles, type GameOptions, type LaunchEvent, type PcReport, type ProfileCard, type Settings, type Snapshot, type Source } from '../shared/types';
 
 // Partie système. C'est le seul endroit qui a le droit de toucher au PC.
 // Version vierge (la règle) : elle ne montre que ce qu'elle lit sur ce PC (electron/library.ts).
@@ -163,6 +165,7 @@ let builtAt = 0;
 async function buildReal(force = false): Promise<Snapshot> {
   if (!force && realData && Date.now() - builtAt < 10_000) return realData;
   await refreshLibrary();
+  await refreshSteam(force);
   if (!pcCache || Date.now() - pcCache.at > 60_000) pcCache = { at: Date.now(), report: await readPc() };
   realData = realSnapshot(pcCache.report.parts);
   builtAt = Date.now();
@@ -174,10 +177,41 @@ const rebuildReal = (): void => {
 };
 let collections: Collection[] = [];
 
+// Favoris : rangés à part pour la version de test, comme les collections.
+const favoritesFile = () => (demo ? 'favoris-test.json' : 'favoris.json');
+let favorites: string[] = [];
+
+// Synchronisation : ce qui suit le joueur d'un PC à l'autre est envoyé au service, au plus une fois toutes les trois secondes.
+let syncTimer: ReturnType<typeof setTimeout> | null = null;
+function scheduleSync(): void {
+  if (!hasSession() || demo) return;
+  if (syncTimer) clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => void pushData({ profileCard, collections, favorites, settings }), 3000);
+}
+
+/** Applique les données reçues du service, après les avoir nettoyées comme toute valeur venue de l'extérieur. */
+function applySynced(data: Record<string, unknown> | undefined): void {
+  if (!data || Object.keys(data).length === 0) return;
+  profileCard = cleanProfileCard(data.profileCard, profileCard);
+  writeProfileCard(profileCard);
+  if (Array.isArray(data.collections)) {
+    collections = cleanCollections(data.collections);
+    writeCollections(collections);
+  }
+  if (Array.isArray(data.favorites)) {
+    favorites = cleanFavorites(data.favorites);
+    writeJson(favoritesFile(), favorites);
+  }
+  settings = cleanSettings(data.settings, settings);
+  writeSettings(settings);
+}
+
 /** Choisit la version à afficher d'après le compte connecté, et recharge ce qui en dépend. Renvoie vrai si elle a changé. */
 let modeSet = false;
 function applyMode(): boolean {
-  const next = forcedTest() || (account.signedIn && isAdmin(account.email));
+  // Avec le service en ligne, c'est lui qui dit si le compte est admin (l'adresse a été prouvée par le code reçu).
+  // Sans lui, l'application se fie à l'empreinte de l'adresse.
+  const next = forcedTest() || (account.signedIn && (serviceAvailable() ? onlineAdmin() : isAdmin(account.email)));
   if (modeSet && next === demo) return false;
   modeSet = true;
   demo = next;
@@ -185,6 +219,8 @@ function applyMode(): boolean {
   realData = null;
   builtAt = 0;
   collections = readCollections();
+  // Version de test sans fichier : les favoris de l'exemple.
+  favorites = cleanFavorites(readJson(favoritesFile()) ?? (demo ? demoSnapshot.games.filter((g) => g.favorite).map((g) => g.id) : []));
   if (demo) {
     loadDemoJournal(demoSnapshot.pc.log);
   } else {
@@ -212,6 +248,7 @@ function registerActions(): void {
   ipcMain.handle('profile:set', (_event, patch: unknown) => {
     profileCard = knownGames(cleanProfileCard(patch, profileCard));
     writeProfileCard(profileCard);
+    scheduleSync();
     return profileCard;
   });
 
@@ -222,12 +259,51 @@ function registerActions(): void {
       collections = knownOnly(cleanCollections(list));
       writeCollections(collections);
     }
+    scheduleSync();
     return collections;
   });
 
   ipcMain.handle('account:get', () => account);
+  ipcMain.handle('steam:link', async (): Promise<LoginResult> => (demo ? { ok: false, message: 'Dans la version de test, les plateformes sont un exemple.' } : startSteamLink()));
+  ipcMain.handle('steam:unlink', async (): Promise<LoginResult> => {
+    await unlinkSteam();
+    await buildReal(true);
+    return { ok: true, message: 'Steam n\'est plus relié. Vos amis et vos succès obtenus ne sont plus affichés.' };
+  });
+  ipcMain.handle('favorites:get', () => favorites);
+  ipcMain.handle('favorites:set', (_event, ids: unknown) => {
+    favorites = cleanFavorites(ids);
+    writeJson(favoritesFile(), favorites);
+    scheduleSync();
+    return favorites;
+  });
+
+  // Service en ligne : la connexion passe par un code reçu par e-mail. L'interface ne peut pas se déclarer connectée elle-même.
+  ipcMain.handle('service:info', () => ({ online: serviceAvailable() }));
+  ipcMain.handle('service:code', async (_event, email: unknown): Promise<LoginResult> => {
+    const value = typeof email === 'string' ? email.trim().toLowerCase() : '';
+    if (!isEmail(value)) return { ok: false, message: 'Cette adresse ne semble pas complète.' };
+    return requestCode(value);
+  });
+  ipcMain.handle('service:verify', async (_event, email: unknown, code: unknown): Promise<LoginResult> => {
+    const value = typeof email === 'string' ? email.trim().toLowerCase() : '';
+    const digits = typeof code === 'string' ? code.replace(/\s/g, '') : '';
+    if (!isEmail(value) || !/^\d{6}$/.test(digits)) return { ok: false, message: 'Le code comporte 6 chiffres.' };
+    const result = await verifyCode(value, digits);
+    if (!result.ok) return { ok: false, message: result.message };
+    account = cleanAccount({ email: value, signedIn: true }, account);
+    writeAccount(account);
+    applyMode();
+    if (!demo) applySynced(result.data);
+    return { ok: true, message: result.message, account };
+  });
+
   ipcMain.handle('account:set', (_event, patch: unknown) => {
-    account = cleanAccount(patch, account);
+    const wasSignedIn = account.signedIn;
+    const requested = cleanAccount(patch, account);
+    // Avec le service en ligne, seule la vérification du code connecte : l'interface peut seulement se déconnecter.
+    account = serviceAvailable() && !hasSession() ? { ...requested, signedIn: false } : requested;
+    if (wasSignedIn && !account.signedIn) void signOut();
     writeAccount(account);
     applyMode(); // le compte admin garde la version de test ; tout autre compte voit la version vierge
     return account;
@@ -397,6 +473,8 @@ app.whenReady().then(() => {
   settings = readSettings();
   profileCard = readProfileCard();
   account = readAccount();
+  loadSession();
+  if (serviceAvailable() && !hasSession()) account = { ...account, signedIn: false };
   gameOptions = readGameOptions();
   applyMode();
   if (process.platform === 'darwin' && fs.existsSync(iconFile)) app.dock?.setIcon(iconFile);

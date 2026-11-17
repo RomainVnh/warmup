@@ -198,6 +198,31 @@ function AccountStep() {
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
   const [avatarError, setAvatarError] = useState('');
+  // Service en ligne : quand il est configuré, l'adresse est prouvée par un code à 6 chiffres reçu par e-mail.
+  const [service, setService] = useState(false);
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    void api.getAccountService().then((info) => setService(info.online)).catch(() => undefined);
+  }, []);
+
+  const sendCode = async (value: string) => {
+    setBusy(true);
+    const result = await api.requestLoginCode(value).catch(() => ({ ok: false, message: 'Le code n\'a pas pu être envoyé.' }));
+    setBusy(false);
+    if (!result.ok) return setError(result.message);
+    setError('');
+    setCode('');
+    setSent(true);
+  };
+  const checkCode = async () => {
+    setBusy(true);
+    const result = await api.verifyLoginCode(mail, code).catch(() => ({ ok: false, message: 'La vérification n\'a pas abouti.' }));
+    setBusy(false);
+    if (!result.ok) return setError(result.message);
+    setError('');
+    updateAccount({ email: mail }); // la partie système a déjà ouvert la session : on relit le compte et la bibliothèque
+  };
   const fileRef = useRef<HTMLInputElement>(null);
 
   const mostPlayed = [...data.games].sort((a, b) => b.hours - a.hours);
@@ -234,7 +259,11 @@ function AccountStep() {
     }
     setError('');
     setMail(value);
-    // Version vierge : le compte est créé sur ce PC tout de suite. L'envoi d'un lien par e-mail viendra avec le service en ligne.
+    if (service) {
+      void sendCode(value);
+      return;
+    }
+    // Sans service en ligne, version vierge : le compte est créé sur ce PC tout de suite. L'envoi d'un lien par e-mail viendra avec le service en ligne.
     if (!data.demo) {
       updateAccount({ email: value, signedIn: true });
       return;
@@ -271,6 +300,24 @@ function AccountStep() {
         <p className="strong" style={{ fontSize: 20, margin: '10px 0 6px' }}>{profileCard.name ? `Bienvenue, ${profileCard.name}` : 'Bienvenue'}</p>
         <p className="muted" style={{ marginBottom: 14 }}>{account.email}</p>
         <button type="button" className="link" onClick={() => { setSent(false); updateAccount({ email: '', signedIn: false }); }}>Utiliser un autre compte</button>
+      </div>
+    );
+  } else if (sent && service) {
+    main = (
+      <div className="ob-card" aria-live="polite">
+        <span className="eyebrow">Code envoyé</span>
+        <p className="strong" style={{ fontSize: 18, margin: '10px 0 6px' }}>Saisissez le code reçu à {mail}</p>
+        <p className="muted">Un code à 6 chiffres, valable 15 minutes. Pensez à regarder dans les courriers indésirables.</p>
+        <label className="ob-field" style={{ marginTop: 16, maxWidth: 220 }}>
+          <span>Code de connexion</span>
+          <span className="field"><input type="text" inputMode="numeric" autoComplete="one-time-code" autoFocus maxLength={7} value={code} placeholder="000000" aria-invalid={error ? true : undefined} onChange={(e) => setCode(e.target.value.replace(/[^0-9 ]/g, ''))} onKeyDown={(e) => e.key === 'Enter' && code.replace(/\s/g, '').length === 6 && void checkCode()} /></span>
+        </label>
+        {error && <p className="status status-warn" role="alert" style={{ marginTop: 10 }}><Icon name="warn" size={12} stroke={2.6} />{error}</p>}
+        <div className="row" style={{ marginTop: 18, gap: 12 }}>
+          <button type="button" className="btn btn-primary" disabled={busy || code.replace(/\s/g, '').length !== 6} onClick={() => void checkCode()}>{busy ? 'Vérification…' : 'Se connecter'}</button>
+          <button type="button" className="btn" disabled={busy} onClick={() => void sendCode(mail)}>Renvoyer un code</button>
+          <button type="button" className="btn" disabled={busy} onClick={() => { setSent(false); setError(''); }}>Changer d'adresse</button>
+        </div>
       </div>
     );
   } else if (sent) {
@@ -344,7 +391,9 @@ function AccountStep() {
           <Icon name={mode === 'create' ? 'plus' : 'check'} size={15} stroke={2.4} />
           {mode === 'create' ? 'Créer mon compte' : 'Se connecter'}
         </button>
-        <p className="small muted">{data.demo
+        <p className="small muted">{service
+          ? 'Pas de mot de passe à retenir : Warmup vous envoie un code de connexion par e-mail.'
+          : data.demo
           ? 'Pas de mot de passe à retenir : Warmup vous envoie un lien de connexion par e-mail.'
           : 'Pas de mot de passe. Pour l\'instant, votre compte est enregistré sur ce PC uniquement ; la vérification par e-mail et la synchronisation entre PC arriveront avec le service en ligne de Warmup.'}</p>
         <p className="ob-switch">

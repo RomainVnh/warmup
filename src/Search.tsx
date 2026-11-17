@@ -7,7 +7,6 @@ import { SETTING_GROUPS } from './screens/Settings';
 const PAGES: { label: string; href: string; icon: IconName }[] = [
   { label: 'Accueil', href: '#/home', icon: 'home' },
   { label: 'Bibliothèque', href: '#/library', icon: 'grid' },
-  { label: 'Téléchargements', href: '#/downloads', icon: 'download' },
   { label: 'Amis', href: '#/friends', icon: 'users' },
   { label: 'Mods', href: '#/mods', icon: 'layers' },
   { label: 'Bilans de parties', href: '#/reports', icon: 'history' },
@@ -34,7 +33,7 @@ const fold = (text: string) => text.normalize('NFD').replace(/[̀-ͯ]/g, '').toL
 
 // Recherche de la barre du haut : jeux, succès, réglages, pages et guides, proposés pendant la frappe.
 export function GlobalSearch() {
-  const { data, play, installed, install } = useApp();
+  const { data, play, installed, notify } = useApp();
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [index, setIndex] = useState(0);
@@ -54,7 +53,7 @@ export function GlobalSearch() {
       .flatMap((g) => g.achievements.list.filter((a) => !(a.hidden && !a.when) && has(a.name)).map((a): Result => ({ key: `ach-${g.id}-${a.name}`, group: 'Succès', label: a.name, detail: `${g.title} · ${a.when ? 'obtenu' : 'pas encore obtenu'}`, href: `#/game/${g.id}?tab=succes`, image: a.icon })))
       .slice(0, 4);
     const settings = SETTING_GROUPS.flatMap((group) => group.rows.filter((row) => has(row.label) || has(row.text)).map((row): Result => ({ key: `set-${row.key}`, group: 'Réglages', label: row.label, detail: group.title, href: '#/settings', icon: 'gear' }))).slice(0, 3);
-    const pages = PAGES.filter((p) => (data.demo || !['#/downloads', '#/friends', '#/mods'].includes(p.href)) && has(p.label)).map((p): Result => ({ key: `page-${p.href}`, group: 'Pages', label: p.label, detail: 'Ouvrir la page', href: p.href, icon: p.icon })).slice(0, 3);
+    const pages = PAGES.filter((p) => (data.demo || !['#/friends', '#/mods'].includes(p.href)) && has(p.label)).map((p): Result => ({ key: `page-${p.href}`, group: 'Pages', label: p.label, detail: 'Ouvrir la page', href: p.href, icon: p.icon })).slice(0, 3);
     const guides = data.guides.filter((g) => has(g.title)).map((g): Result => ({ key: `guide-${g.id}`, group: 'Guides', label: g.title, detail: `${g.duration} · ${g.level}`, href: `#/guide/${g.id}`, icon: 'check' }));
     return [...games, ...achievements, ...settings, ...pages, ...guides];
   }, [query, data, installed]);
@@ -95,7 +94,7 @@ export function GlobalSearch() {
     setQuery('');
     inputRef.current?.blur();
     if (installed.has(game.id)) play(game);
-    else install(game);
+    else notify(`${game.title} n'est pas installé. Installez-le depuis sa plateforme.`);
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {

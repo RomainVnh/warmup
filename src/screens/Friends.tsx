@@ -8,7 +8,7 @@ type Filter = 'all' | 'playing' | 'joinable';
 const friendHref = (name: string) => `#/friends/${encodeURIComponent(name)}`;
 
 export function Friends({ selected }: { selected: string }) {
-  const { data, play, installed, install, notify, online: connected } = useApp();
+  const { data, play, installed, notify, online: connected } = useApp();
   const [filter, setFilter] = useState<Filter>('all');
   const online = data.friends.filter((f) => f.online);
   const offline = data.friends.filter((f) => !f.online);
@@ -21,7 +21,7 @@ export function Friends({ selected }: { selected: string }) {
     const game = target.gameId ? findGame(data, target.gameId) : undefined;
     if (!game) return;
     if (!installed.has(game.id)) {
-      install(game);
+      notify(`${game.title} n'est pas installé. Installez-le depuis sa plateforme pour rejoindre ${target.name}.`);
       return;
     }
     notify(`Vous rejoindrez ${target.name} dès que ${game.title} sera lancé.`);
@@ -136,7 +136,7 @@ function FriendProfile({ friend, onJoin }: { friend: FriendStatus; onJoin(friend
           {friend.online && current && friend.joinable && (
             <button type="button" className="btn btn-primary" onClick={() => onJoin(friend)} disabled={!connected} title={connected ? undefined : 'Disponible au retour de la connexion'}>
               <Icon name="play" size={13} filled />
-              {installed.has(current.id) ? 'Rejoindre' : 'Installer pour rejoindre'}
+              {installed.has(current.id) ? 'Rejoindre' : 'Jeu non installé'}
             </button>
           )}
           {friend.online && current && !friend.joinable && <span className="chip">Partie en cours, impossible de rejoindre</span>}

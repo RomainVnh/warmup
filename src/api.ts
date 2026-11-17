@@ -1,7 +1,7 @@
 import { snapshot } from '../shared/mock-data';
 import { simulateLaunch } from '../shared/launch-sim';
 import { buildRealSnapshot } from '../shared/real-data';
-import { cleanAllGameOptions, cleanGameOptions, defaultGameOptions, cleanAccount, cleanCollections, cleanProfileCard, defaultAccount, defaultProfileCard, defaultSettings, settingKeys, type Account, type Collection, type DetectionReport, type GameActionResult, type GameOptions, type JournalEntry, type WarmupApi, type ProfileCard, type Settings } from '../shared/types';
+import { cleanFavorites, cleanAllGameOptions, cleanGameOptions, defaultGameOptions, cleanAccount, cleanCollections, cleanProfileCard, defaultAccount, defaultProfileCard, defaultSettings, settingKeys, type Account, type Collection, type DetectionReport, type GameActionResult, type GameOptions, type JournalEntry, type WarmupApi, type ProfileCard, type Settings } from '../shared/types';
 
 declare global {
   interface Window {
@@ -120,7 +120,7 @@ const testOnly: GameActionResult = { ok: false, simulated: true, message: 'Dans 
 
 // Version « navigateur » : sert à travailler l'interface sans Electron (npm run dev).
 const webApi: WarmupApi = {
-  getSnapshot: async () => (demo === 'vierge' ? buildRealSnapshot({ games: [], parts: snapshot.pc.parts, sessions: [], journal: [], now: Date.now() }) : demo === 'vide' ? { ...snapshot, games: [], downloads: { ...snapshot.downloads, items: [] }, notices: snapshot.notices.filter((n) => !n.gameId), reports: [], mods: [] } : snapshot),
+  getSnapshot: async () => (demo === 'vierge' ? buildRealSnapshot({ games: [], parts: snapshot.pc.parts, sessions: [], journal: [], now: Date.now() }) : demo === 'vide' ? { ...snapshot, games: [], notices: snapshot.notices.filter((n) => !n.gameId), reports: [], mods: [] } : snapshot),
   getSettings: async () => loadSettings(),
   setSettings: async (patch) => {
     const next = { ...loadSettings(), ...patch };
@@ -161,6 +161,29 @@ const webApi: WarmupApi = {
     }
     return next;
   },
+  getFavorites: async () => {
+    try {
+      const saved = localStorage.getItem('warmup.favoris');
+      return saved ? cleanFavorites(JSON.parse(saved)) : snapshot.games.filter((g) => g.favorite).map((g) => g.id);
+    } catch {
+      return [];
+    }
+  },
+  setFavorites: async (ids) => {
+    const next = cleanFavorites(ids);
+    try {
+      localStorage.setItem('warmup.favoris', JSON.stringify(next));
+    } catch {
+      // Les favoris valent au moins pour cette session.
+    }
+    return next;
+  },
+  // Dans le navigateur, il n'y a pas de service en ligne : la connexion reste l'exemple.
+  linkSteam: async () => ({ ok: false, message: 'Dans la version de test, les plateformes sont un exemple.' }),
+  unlinkSteam: async () => ({ ok: false, message: 'Dans la version de test, les plateformes sont un exemple.' }),
+  getAccountService: async () => ({ online: false }),
+  requestLoginCode: async () => ({ ok: false, message: 'Le service en ligne n\'est pas disponible dans le navigateur.' }),
+  verifyLoginCode: async () => ({ ok: false, message: 'Le service en ligne n\'est pas disponible dans le navigateur.' }),
   addGame: async () => testOnly,
   renameGame: async () => testOnly,
   removeGame: async () => testOnly,

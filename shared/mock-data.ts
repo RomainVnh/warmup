@@ -1,6 +1,6 @@
 import { steamAchievements } from './achievements-data';
 import { gameNews } from './news-data';
-import { buildReports, downloads, friends, graphicsFor, guides, modSets, notices } from './mock-extra';
+import { buildReports, friends, graphicsFor, guides, modSets, notices } from './mock-extra';
 import type { Achievement, Check, Game, LaunchStep, Review, Session, Snapshot } from './types';
 
 // Données d'exemple : les jeux existent, mais les chiffres, noms de joueurs et incidents sont inventés.
@@ -287,6 +287,7 @@ const games: Game[] = [
 
 export const snapshot: Snapshot = {
   demo: true,
+  steam: { linked: true, name: 'Joueur' },
   games,
   week: { hours: [3.4, 0.8, 2, 1.2, 2.2, 3, 4.4], total: '19 h', cleanLaunches: '14 sur 15', fixes: '3' },
   pc: {
@@ -320,7 +321,6 @@ export const snapshot: Snapshot = {
   mods: modSets,
   reports: buildReports(games),
   friends,
-  downloads,
   notices,
   guides,
   profile: {

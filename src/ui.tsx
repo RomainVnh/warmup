@@ -216,42 +216,14 @@ export function GameLogo({ game, as: Tag = 'div' }: { game: Game; as?: 'h1' | 'd
 // Bouton principal d'un jeu. Sa couleur dit l'état : vert « Jouer », orange « Corriger et jouer ».
 // Un jeu absent du disque propose « Installer », puis l'avancement de son téléchargement.
 export function PlayButton({ game, onPlay, small = false }: { game: Game; onPlay(game: Game): void; small?: boolean }) {
-  const { installed, downloads, install } = useApp();
+  const { installed, notify } = useApp();
   const size = small ? ' sm' : '';
+  // Jeu possédé mais absent du disque : Warmup n'installe pas les jeux, c'est le rôle de leur plateforme.
   if (!installed.has(game.id)) {
-    const job = downloads.find((d) => d.gameId === game.id && d.kind === 'install' && d.state !== 'done');
-    if (job) {
-      const percent = Math.min(100, Math.floor((job.doneGb / job.sizeGb) * 100));
-      if (job.state === 'failed') {
-        return (
-          <a className={`play warn${size}`} href="#/downloads" aria-label={`Installation de ${game.title} interrompue à ${percent} %. Voir les téléchargements pour la reprendre`}>
-            <Icon name="warn" size={small ? 14 : 16} stroke={2.4} />
-            Interrompue · {percent} %
-          </a>
-        );
-      }
-      const label = job.state === 'active' ? 'Installation' : job.state === 'paused' ? 'En pause' : 'En attente';
-      const content = (
-        <>
-          <Icon name={job.state === 'paused' ? 'pause' : 'download'} size={small ? 14 : 16} stroke={2.2} />
-          {label} · {percent} %
-        </>
-      );
-      // Barre verte qui avance avec le téléchargement. Le libellé est dessiné deux fois :
-      // clair sur le fond gris, foncé sur la partie verte, pour rester lisible partout.
-      return (
-        <a className={`play installing${job.state === 'active' ? '' : ' idle'}${size}`} href="#/downloads" aria-label={`${label} de ${game.title} : ${percent} %. Voir les téléchargements`}>
-          <span className="play-label">{content}</span>
-          <span className="play-fill" aria-hidden="true" style={{ clipPath: `inset(0 ${100 - percent}% 0 0)` }}>
-            <span className="play-label">{content}</span>
-          </span>
-        </a>
-      );
-    }
     return (
-      <button type="button" className={`play neutral${size}`} onClick={() => install(game)}>
+      <button type="button" className={`play neutral${size}`} onClick={() => notify(`${game.title} n'est pas installé. Installez-le depuis ${sourceLabel(game.source)} : Warmup le retrouvera à la prochaine analyse.`)}>
         <Icon name="download" size={small ? 14 : 16} stroke={2.2} />
-        Installer
+        Non installé
       </button>
     );
   }

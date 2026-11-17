@@ -41,9 +41,10 @@ export function GamePage({ id, initialTab }: { id: string; initialTab: string })
 
   // Version vierge : rien d'inventé. Les succès obtenus, les amis, les avis et les réglages conseillés
   // viendront avec les connexions aux plateformes ; leurs onglets ne s'affichent pas d'ici là.
-  const tabs = data.demo ? TABS : TABS.filter((t) => t.id === 'apercu' || t.id === 'sante' || (t.id === 'actus' && game.news.length > 0));
+  const proven = data.demo || game.achievements.done > 0; // succès obtenus connus : exemple, ou confirmés par Steam
+  const tabs = data.demo ? TABS : TABS.filter((t) => t.id === 'apercu' || t.id === 'sante' || (t.id === 'succes' && proven) || (t.id === 'actus' && game.news.length > 0));
   const { done } = game.achievements;
-  const total = data.demo ? game.achievements.total : 0;
+  const total = proven ? game.achievements.total : 0;
   const percent = total ? Math.round((done / total) * 100) : 0;
   const warnChecks = game.checks.filter((c) => c.status === 'warn').length;
 
@@ -283,7 +284,7 @@ function Overview({ game, onTab }: { game: Game; onTab(tab: TabId): void }) {
   const { notify, data } = useApp();
   const online = game.friends.filter((f) => f.online).length;
   const { done, list } = game.achievements;
-  const total = data.demo ? game.achievements.total : 0;
+  const total = data.demo || done > 0 ? game.achievements.total : 0;
   const meta = [game.genre, game.developer, game.year || '', data.demo || game.developer ? (game.multiplayer ? 'Multijoueur' : 'Solo') : ''].filter(Boolean).join(' · ');
   const openFolder = () => void api.openGameFolder(game.id).then((result) => notify(result.message)).catch(() => notify('Le dossier n\'a pas pu être ouvert.'));
   return (

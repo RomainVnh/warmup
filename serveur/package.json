@@ -1,0 +1,16 @@
+{
+  "name": "warmup-serveur",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Service en ligne de Warmup : comptes, connexion par code reçu par e-mail et synchronisation.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "dev": "tsc -p tsconfig.json && node dist/index.js"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "typescript": "^5.6.3"
+  }
+}

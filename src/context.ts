@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import type { Account, Collection, GameOptions, JournalEntry, Download, Game, Notice, ProfileCard, Settings, Snapshot } from '../shared/types';
+import type { Account, Collection, GameOptions, JournalEntry, Game, Notice, ProfileCard, Settings, Snapshot } from '../shared/types';
 
 export interface AppState {
   data: Snapshot;
@@ -12,15 +12,8 @@ export interface AppState {
   updateProfileCard(patch: Partial<ProfileCard>): void;
   /** Pseudo à afficher : celui choisi, sinon le nom par défaut. */
   displayName: string;
-  /** Jeux présents sur le disque. Un jeu possédé mais absent doit d'abord être installé. */
+  /** Jeux présents sur le disque. */
   installed: Set<string>;
-  downloads: Download[];
-  /** Ajoute l'installation d'un jeu à la file des téléchargements. */
-  install(game: Game): void;
-  setDownloadPaused(id: string, paused: boolean): void;
-  removeDownload(id: string): void;
-  /** Relance un téléchargement qui a échoué, là où il s'était arrêté. */
-  retryDownload(id: string): void;
   /** Faux : pas de connexion internet. Les jeux installés se lancent quand même. */
   online: boolean;
   collections: Collection[];

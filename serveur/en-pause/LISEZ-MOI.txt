@@ -1,0 +1,7 @@
+Coach, l'assistant de Warmup, est en pause : il arrivera dans une mise à jour, pas dans la première version.
+
+coach.ts contient son code côté serveur (appel à l'API Claude, consignes, gestion des refus).
+Il n'est pas compilé ni branché. Pour le remettre en service :
+  1. ajouter la dépendance « @anthropic-ai/sdk » au serveur et la clé ANTHROPIC_API_KEY ;
+  2. replacer coach.ts dans src/ et ajouter la route POST /coach dans src/index.ts ;
+  3. côté application, ajouter l'action correspondante (quatre étapes de CLAUDE.md).

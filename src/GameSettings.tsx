@@ -9,7 +9,7 @@ import { GameArt, Icon, Segmented, Toggle } from './ui';
 // Rien ne touche au jeu lui-même : Warmup passe par la plateforme ou par le système.
 
 export function GameSettings({ game, onClose }: { game: Game; onClose(): void }) {
-  const { gameOptions, updateGameOptions, settings, installed, install, uninstall, notify, reload } = useApp();
+  const { gameOptions, updateGameOptions, settings, installed, uninstall, notify, reload } = useApp();
   const [title, setTitle] = useState(game.title);
   const options = gameOptions[game.id] ?? defaultGameOptions;
   const isInstalled = installed.has(game.id);
@@ -188,9 +188,8 @@ export function GameSettings({ game, onClose }: { game: Game; onClose(): void })
               <div className="gs-row">
                 <div className="grow">
                   <div className="strong">Ce jeu n'est pas installé</div>
-                  <div className="small muted">{game.sizeGb} Go à télécharger.</div>
+                  <div className="small muted">Installez-le depuis {game.source} : Warmup le retrouvera à la prochaine analyse.</div>
                 </div>
-                <button type="button" className="btn btn-primary" onClick={() => { install(game); onClose(); }}><Icon name="download" size={14} />Installer</button>
               </div>
             ) : (
               <>

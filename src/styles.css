@@ -924,14 +924,6 @@ a.list-row .link { flex: none; }
 .gs-note { margin-top: 18px; }
 @media (max-width: 640px) { .gs-row { flex-wrap: wrap; } }
 
-/* Bouton principal pendant l'installation : la partie verte avance avec le téléchargement. */
-.play.installing { position: relative; overflow: hidden; background: var(--panel-2); color: var(--text); filter: none; }
-.play.installing:hover { filter: none; background: rgba(255, 255, 255, 0.14); }
-.play.installing .play-label { display: inline-flex; align-items: center; gap: inherit; white-space: nowrap; }
-.play-fill { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: inherit; background: var(--ok); color: var(--ok-ink); transition: clip-path 0.6s ease-out; }
-.play.installing.idle .play-fill { background: #3f8f54; color: #f3f3f4; }
-@media (prefers-reduced-motion: reduce) { .play-fill { transition: none; } }
-
 /* Paramètres d'un jeu : fenêtre plus large. */
 .gs { width: min(920px, 100%); }
 .gs-body { padding: 8px 32px 28px; }

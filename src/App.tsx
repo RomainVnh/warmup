@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { cleanAllGameOptions, cleanGameOptions, defaultGameOptions, cleanAccount, cleanCollections, cleanProfileCard, defaultProfileCard, defaultSettings, type Account, type Collection, type GameOptions, type JournalEntry, type Download, type Game, type Notice, type ProfileCard, type Settings, type Snapshot } from '../shared/types';
+import { cleanAllGameOptions, cleanGameOptions, defaultGameOptions, cleanAccount, cleanCollections, cleanProfileCard, defaultProfileCard, defaultSettings, type Account, type Collection, type GameOptions, type JournalEntry, type Game, type Notice, type ProfileCard, type Settings, type Snapshot } from '../shared/types';
 import { api, demo } from './api';
 import { AppContext, type AppState } from './context';
 import { LaunchOverlay, type LaunchState } from './LaunchOverlay';
@@ -14,7 +14,6 @@ import { Report } from './screens/Report';
 import { Assistant } from './screens/Assistant';
 import { SettingsPage } from './screens/Settings';
 import { ProfilePage } from './screens/Profile';
-import { Downloads } from './screens/Downloads';
 import { Friends } from './screens/Friends';
 import { Reports } from './screens/Reports';
 import { GuidePage } from './screens/Guide';
@@ -54,7 +53,6 @@ export function App() {
   const [launch, setLaunch] = useState<LaunchState | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
   const [installed, setInstalled] = useState<Set<string>>(new Set());
-  const [downloads, setDownloads] = useState<Download[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [notices, setNotices] = useState<Notice[]>([]);
   const [account, setAccount] = useState<Account | null>(null);
@@ -81,8 +79,6 @@ export function App() {
     if (loadedOnce.current) return;
     // Seulement à l'ouverture : ce que le joueur a changé depuis (favoris, notifications lues) ne doit pas être écrasé.
     loadedOnce.current = true;
-    setFavorites(new Set(snap.games.filter((g) => g.favorite).map((g) => g.id)));
-    setDownloads(snap.downloads.items);
     setNotices(snap.notices);
   }, []);
 
@@ -91,6 +87,7 @@ export function App() {
     void api.getSettings().then(setSettings);
     void api.getProfileCard().then(setProfileCard);
     void api.getCollections().then(setCollections);
+    void api.getFavorites().then((ids) => setFavorites(new Set(ids)));
     void api.getAccount().then(setAccount);
     void api.getGameOptions().then(setGameOptions).catch(() => undefined);
     return () => cancelLaunch.current?.();
@@ -152,6 +149,9 @@ export function App() {
       if ('email' in patch || 'signedIn' in patch) {
         void reload(true);
         void api.getCollections().then(setCollections);
+        void api.getFavorites().then((ids) => setFavorites(new Set(ids)));
+        void api.getProfileCard().then(setProfileCard);
+        void api.getSettings().then(setSettings);
       }
     });
   }, [reload]);
@@ -193,8 +193,7 @@ export function App() {
           next.delete(game.id);
           return next;
         });
-        setDownloads((list) => list.filter((d) => d.gameId !== game.id || d.state === 'done'));
-        setNotices((list) => [{ id: `desinstalle-${game.id}-${Date.now()}`, kind: 'update', title: `${game.title} est désinstallé`, text: `${game.sizeGb} Go libérés. Vous pouvez le réinstaller à tout moment depuis sa fiche.`, when: 'À l\'instant', href: `#/game/${game.id}`, unread: true, gameId: game.id }, ...list]);
+        setNotices((list) => [{ id: `desinstalle-${game.id}-${Date.now()}`, kind: 'update', title: `${game.title} est désinstallé`, text: `${game.sizeGb} Go libérés. Vous pouvez le réinstaller depuis sa plateforme.`, when: 'À l\'instant', href: `#/game/${game.id}`, unread: true, gameId: game.id }, ...list]);
       }
       return result.message;
     } catch {
@@ -204,77 +203,6 @@ export function App() {
 
   const markNoticesRead = useCallback(() => setNotices((list) => list.map((n) => ({ ...n, unread: false }))), []);
 
-  // Téléchargements simulés : un seul avance à la fois, à la vitesse d'exemple ; le suivant de la file prend le relais.
-  const speed = data?.downloads.speedMbPerSec ?? 0;
-  const busy = downloads.some((d) => d.state === 'active' || d.state === 'queued');
-  // Sans connexion, la file attend : rien n'est perdu, tout reprend au retour du réseau.
-  useEffect(() => {
-    if (!busy || !speed || !online) return;
-    const timer = setInterval(() => {
-      setDownloads((list) => {
-        const index = list.findIndex((d) => d.state === 'active');
-        if (index < 0) {
-          const next = list.findIndex((d) => d.state === 'queued');
-          return next < 0 ? list : list.map((d, i) => (i === next ? { ...d, state: 'active' } : d));
-        }
-        const current = list[index];
-        const doneGb = Math.min(current.sizeGb, current.doneGb + speed / 1000);
-        const finished = doneGb >= current.sizeGb;
-        return list.map((d, i) => (i === index ? { ...d, doneGb, state: finished ? 'done' : 'active', when: finished ? 'À l\'instant' : d.when } : d));
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [busy, speed, online]);
-
-  // Une installation terminée rend le jeu jouable.
-  useEffect(() => {
-    const ready = downloads.filter((d) => d.kind === 'install' && d.state === 'done' && !installed.has(d.gameId));
-    if (!ready.length) return;
-    setInstalled((current) => new Set([...current, ...ready.map((d) => d.gameId)]));
-    const game = data?.games.find((g) => g.id === ready[0].gameId);
-    if (game) {
-      setToast({ text: `${game.title} est installé et prêt à jouer.`, link: { label: 'Ouvrir la fiche', href: `#/game/${game.id}` } });
-      setNotices((list) => [{ id: `installe-${game.id}`, kind: 'update', title: `${game.title} est installé`, text: `${game.sizeGb} Go téléchargés. Le jeu est prêt.`, when: 'À l\'instant', href: `#/game/${game.id}`, unread: true, gameId: game.id }, ...list]);
-    }
-  }, [downloads, installed, data]);
-
-  const diskFree = data?.downloads.diskFreeGb ?? 0;
-  const install = useCallback((game: Game) => {
-    const existing = downloads.find((d) => d.gameId === game.id && d.kind === 'install' && d.state !== 'done');
-    if (existing) {
-      setToast({ text: `${game.title} est déjà dans les téléchargements.`, link: { label: 'Voir la file', href: '#/downloads' } });
-      return;
-    }
-    // Place nécessaire : celle du jeu, en plus de ce qui reste à télécharger dans la file.
-    const pending = downloads.filter((d) => d.state !== 'done' && d.state !== 'failed').reduce((sum, d) => sum + (d.sizeGb - d.doneGb), 0);
-    const missing = Math.ceil(game.sizeGb - (diskFree - pending));
-    const job: Download = { id: `installation-${game.id}`, gameId: game.id, kind: 'install', label: 'Installation', sizeGb: game.sizeGb, doneGb: 0, state: downloads.some((d) => d.state === 'active') ? 'queued' : 'active', when: '' };
-    if (missing > 0) {
-      const error = `Il manque ${missing} Go sur le disque. Libérez de la place, puis réessayez.`;
-      setDownloads((list) => [...list, { ...job, state: 'failed', when: 'À l\'instant', error }]);
-      setToast({ text: `${game.title} ne peut pas être installé : il manque ${missing} Go sur le disque.`, link: { label: 'Voir les téléchargements', href: '#/downloads' } });
-      return;
-    }
-    setDownloads((list) => [...list, job]);
-    setToast({ text: online ? `${game.title} est ajouté aux téléchargements.` : `${game.title} est ajouté aux téléchargements. Il commencera au retour de la connexion.`, link: { label: 'Voir la file', href: '#/downloads' } });
-  }, [downloads, diskFree, online]);
-
-  const retryDownload = useCallback((id: string) => {
-    setDownloads((list) => {
-      const job = list.find((d) => d.id === id);
-      if (!job || job.state !== 'failed') return list;
-      const pending = list.filter((d) => d.id !== id && d.state !== 'done' && d.state !== 'failed').reduce((sum, d) => sum + (d.sizeGb - d.doneGb), 0);
-      const missing = Math.ceil(job.sizeGb - job.doneGb - (diskFree - pending));
-      if (missing > 0) return list.map((d) => (d.id === id ? { ...d, when: 'À l\'instant', error: `Il manque toujours ${missing} Go sur le disque. Libérez de la place, puis réessayez.` } : d));
-      return list.map((d) => (d.id === id ? { ...d, state: list.some((x) => x.state === 'active') ? 'queued' : 'active', error: undefined, when: '' } : d));
-    });
-  }, [diskFree]);
-
-  const setDownloadPaused = useCallback((id: string, paused: boolean) => {
-    setDownloads((list) => list.map((d) => (d.id === id && d.state !== 'done' ? { ...d, state: paused ? 'paused' : 'queued' } : d)));
-  }, []);
-
-  const removeDownload = useCallback((id: string) => setDownloads((list) => list.filter((d) => d.id !== id)), []);
 
   const play = useCallback(
     (game: Game) => {
@@ -321,14 +249,15 @@ export function App() {
       const next = new Set(current);
       if (next.has(id)) next.delete(id);
       else next.add(id);
+      void api.setFavorites([...next]); // enregistré tout de suite : les favoris survivent à la fermeture
       return next;
     });
   }, []);
 
   const displayName = profileCard.name || data?.profile.name || 'Joueur';
   const state = useMemo<AppState | null>(
-    () => (data && account ? { data, account, updateAccount, settings, updateSettings, play, profileCard, updateProfileCard, displayName, installed, downloads, install, setDownloadPaused, removeDownload, retryDownload, online, collections, saveCollections, notices, markNoticesRead, favorites, toggleFavorite, reload, addGame, journal, undoFix, gameOptions, updateGameOptions, uninstall, notify } : null),
-    [data, account, updateAccount, settings, updateSettings, play, profileCard, updateProfileCard, displayName, installed, downloads, install, setDownloadPaused, removeDownload, retryDownload, online, collections, saveCollections, notices, markNoticesRead, favorites, toggleFavorite, reload, addGame, journal, undoFix, gameOptions, updateGameOptions, uninstall, notify]
+    () => (data && account ? { data, account, updateAccount, settings, updateSettings, play, profileCard, updateProfileCard, displayName, installed, online, collections, saveCollections, notices, markNoticesRead, favorites, toggleFavorite, reload, addGame, journal, undoFix, gameOptions, updateGameOptions, uninstall, notify } : null),
+    [data, account, updateAccount, settings, updateSettings, play, profileCard, updateProfileCard, displayName, installed, online, collections, saveCollections, notices, markNoticesRead, favorites, toggleFavorite, reload, addGame, journal, undoFix, gameOptions, updateGameOptions, uninstall, notify]
   );
 
   if (!state) return <div className="overlay" role="status">Chargement de la bibliothèque</div>;
@@ -346,17 +275,16 @@ export function App() {
   const pcIssues = state.data.pc.parts.filter((p) => p.status === 'warn').length;
   const recent = state.data.games.filter((g) => installed.has(g.id)).sort((x, y) => x.recentRank - y.recentRank).slice(0, 6);
   const friends = [...state.data.friends].sort((x, y) => Number(y.online) - Number(x.online));
-  const running = downloads.filter((d) => d.state !== 'done').length;
 
   // Version vierge : les téléchargements, les mods et les amis n'existent pas encore pour de vrai ; leurs pages ne s'affichent pas.
   const isDemo = state.data.demo;
-  const hidden = !isDemo && ['downloads', 'mods', 'friends'].includes(route.name);
+  const hasFriends = isDemo || state.data.friends.length > 0;
+  const hidden = !isDemo && (route.name === 'mods' || (route.name === 'friends' && !hasFriends));
   let screen;
   switch (hidden ? 'home' : route.name) {
     case 'library': screen = <Library key={route.query.toString()} initialQuery={route.query.get('q') ?? ''} />; break;
     case 'game': screen = <GamePage key={route.param} id={route.param} initialTab={route.query.get('tab') ?? ''} />; break;
     case 'mods': screen = <Mods key={route.param} gameId={route.param} />; break;
-    case 'downloads': screen = <Downloads />; break;
     case 'friends': screen = <Friends selected={route.param} />; break;
     case 'reports': screen = <Reports key={route.query.toString()} initialGame={route.query.get('game') ?? ''} />; break;
     case 'guide': screen = <GuidePage key={route.param} id={route.param} />; break;
@@ -412,7 +340,7 @@ export function App() {
         <div className="content">
           <header className="top">
             <GlobalSearch />
-            {isDemo && <a className={`top-friends${active === 'friends' ? ' active' : ''}`} href="#/friends" title="Voir les amis" aria-label={`Amis : ${friends.filter((f) => f.online).length} en ligne. Ouvrir la page Amis`}>
+            {hasFriends && <a className={`top-friends${active === 'friends' ? ' active' : ''}`} href="#/friends" title="Voir les amis" aria-label={`Amis : ${friends.filter((f) => f.online).length} en ligne. Ouvrir la page Amis`}>
               <span className="small muted top-friends-count">{friends.filter((f) => f.online).length} amis en ligne</span>
               <span className="stack-avatars" aria-hidden="true">
                 {friends.slice(0, 6).map((f) => (
@@ -420,11 +348,7 @@ export function App() {
                 ))}
               </span>
             </a>}
-            {isDemo && <span className="top-sep" aria-hidden="true" />}
-            {isDemo && <a href="#/downloads" title="Téléchargements" className={`top-icon${active === 'downloads' ? ' active' : ''}`} aria-label={running ? `Téléchargements, ${running} en cours ou en attente` : 'Téléchargements'} aria-current={active === 'downloads' ? 'page' : undefined}>
-              <Icon name="download" size={16} />
-              {running > 0 && <span className="top-count">{running}</span>}
-            </a>}
+            {hasFriends && <span className="top-sep" aria-hidden="true" />}
             <NotificationBell />
             {isDemo && <a href="#/mods" title="Mods" className={`top-icon${active === 'mods' ? ' active' : ''}`} aria-label="Mods" aria-current={active === 'mods' ? 'page' : undefined}><Icon name="layers" size={16} /></a>}
             <a href="#/assistant" title="Coach, l'assistant" className={`top-icon${active === 'assistant' ? ' active' : ''}`} aria-label="Coach, l'assistant" aria-current={active === 'assistant' ? 'page' : undefined}><Icon name="chat" size={16} /></a>
@@ -437,7 +361,7 @@ export function App() {
           {!online && (
             <div className="offline-bar" role="status">
               <Icon name="offline" size={16} stroke={2} />
-              <span><strong>Pas de connexion internet.</strong> Vos jeux installés se lancent quand même. Les téléchargements, les amis et les actualités reprendront au retour de la connexion.</span>
+              <span><strong>Pas de connexion internet.</strong> Vos jeux installés se lancent quand même. Les amis et les actualités reprendront au retour de la connexion.</span>
             </div>
           )}
           <div className="body">

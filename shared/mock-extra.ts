@@ -1,4 +1,4 @@
-import type { Download, FriendStatus, Game, GraphicsAdvice, Guide, ModSet, Notice, Report } from './types';
+import type { FriendStatus, Game, GraphicsAdvice, Guide, ModSet, Notice, Report } from './types';
 
 // Suite des données d'exemple : réglages conseillés, bilans, mods, amis, téléchargements, notifications, guides.
 // Tout ce qui est chiffré ici est inventé pour travailler l'interface.
@@ -312,32 +312,14 @@ export const friends: FriendStatus[] = [
   }
 ];
 
-/* ───── Téléchargements ───── */
-
-export const downloads: { items: Download[]; speedMbPerSec: number; diskFreeGb: number; diskTotalGb: number } = {
-  speedMbPerSec: 112,
-  diskFreeGb: 212,
-  diskTotalGb: 2000,
-  items: [
-    { id: 'bg3-correctif', gameId: 'baldurs-gate-3', kind: 'update', label: 'Mise à jour : correctif n° 36', sizeGb: 9.6, doneGb: 4.2, state: 'active', when: '' },
-    { id: 'silksong-maj', gameId: 'hollow-knight-silksong', kind: 'update', label: 'Mise à jour 1.0.30000', sizeGb: 0.4, doneGb: 0, state: 'queued', when: '' },
-    { id: 'installation-hades-2', gameId: 'hades-2', kind: 'install', label: 'Installation', sizeGb: 10, doneGb: 3.4, state: 'failed', when: 'Il y a 3 h', error: 'La connexion a été coupée pendant le téléchargement. Rien n\'est perdu : il reprendra là où il s\'était arrêté.' },
-    { id: 'cod-saison-1', gameId: 'call-of-duty-mw4', kind: 'update', label: 'Mise à jour : Saison 1', sizeGb: 18.2, doneGb: 18.2, state: 'done', when: 'Hier, 20 h 41' },
-    { id: 'cyberpunk-2-5', gameId: 'cyberpunk-2077', kind: 'update', label: 'Mise à jour 2.5', sizeGb: 6.8, doneGb: 6.8, state: 'done', when: 'Hier, 18 h 04' }
-  ]
-};
-
 /* ───── Notifications ───── */
 
 export const notices: Notice[] = [
   { id: 'n1', kind: 'friend', title: 'Lina joue à Modern Warfare 4', text: 'En partie classée depuis 25 minutes. Vous pouvez la rejoindre.', when: 'Il y a 25 min', href: '#/friends/Lina', unread: true, friend: 'Lina', gameId: 'call-of-duty-mw4' },
   { id: 'n2', kind: 'fix', title: '2 mods incompatibles sur Cyberpunk 2077', text: 'Ils seront désactivés au prochain lancement, avec votre accord.', when: 'Il y a 1 h', href: '#/mods/cyberpunk-2077', unread: true, gameId: 'cyberpunk-2077' },
-  { id: 'n11', kind: 'update', title: 'Hades II : téléchargement interrompu', text: 'La connexion a été coupée à 3,4 Go sur 10 Go. Vous pouvez le reprendre là où il s\'était arrêté.', when: 'Il y a 3 h', href: '#/downloads', unread: true, gameId: 'hades-2' },
-  { id: 'n3', kind: 'update', title: 'Baldur\'s Gate 3 : correctif n° 36 en cours', text: 'Le téléchargement de 9,6 Go a commencé.', when: 'Il y a 2 h', href: '#/downloads', unread: true, gameId: 'baldurs-gate-3' },
   { id: 'n4', kind: 'achievement', title: 'Succès obtenu : Membre de l\'expédition', text: 'Clair Obscur : Expedition 33. Atteindre le niveau 33.', when: 'Hier, 23 h 10', href: '#/game/expedition-33?tab=succes', unread: false, gameId: 'expedition-33', achievement: 'Membre de l\'expédition' },
   { id: 'n9', kind: 'achievement', title: 'Succès obtenu : En bonne compagnie', text: 'Red Dead Redemption 2. Terminez une activité avec un camarade dans chaque camp.', when: 'Hier, 22 h 40', href: '#/game/red-dead-redemption-2?tab=succes', unread: false, gameId: 'red-dead-redemption-2', achievement: 'En bonne compagnie' },
   { id: 'n5', kind: 'fix', title: 'Bilan prêt : vos 2 saccades venaient du réseau', text: 'Modern Warfare 4, hier soir. Le PC n\'était pas en cause.', when: 'Hier, 22 h 14', href: '#/report/call-of-duty-mw4-1', unread: false, gameId: 'call-of-duty-mw4' },
-  { id: 'n6', kind: 'fix', title: 'Téléchargement mis en pause pendant la partie', text: 'Repris automatiquement à la fin de la partie.', when: 'Hier, 21 h 02', href: '#/diagnostic', unread: false },
   { id: 'n10', kind: 'friend', title: 'Noor a ouvert son groupe', text: 'Baldur\'s Gate 3, au campement. Une place est libre.', when: 'Hier, 20 h 55', href: '#/friends/Noor', unread: false, friend: 'Noor', gameId: 'baldurs-gate-3' },
   { id: 'n7', kind: 'update', title: 'Modern Warfare 4 : Saison 1 installée', text: 'Mise à jour de 18,2 Go terminée.', when: 'Hier, 20 h 41', href: '#/game/call-of-duty-mw4?tab=actus', unread: false, gameId: 'call-of-duty-mw4' },
   { id: 'n8', kind: 'update', title: 'Cyberpunk 2077 est passé en version 2.5', text: 'Mise à jour automatique. Deux mods ne la prennent pas encore en charge.', when: 'Hier, 18 h 04', href: '#/game/cyberpunk-2077?tab=sante', unread: false, gameId: 'cyberpunk-2077' }

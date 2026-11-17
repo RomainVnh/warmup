@@ -2,7 +2,9 @@ import path from 'node:path';
 import { BrowserWindow, dialog } from 'electron';
 import { snapshot as catalogue } from '../shared/mock-data';
 import { buildRealSnapshot, type RealGameInput } from '../shared/real-data';
-import type { DetectionReport, DetectSource, GameActionResult, PcPart, Snapshot, Source } from '../shared/types';
+import { ago } from '../shared/real-data';
+import type { DetectionReport, DetectSource, FriendStatus, GameActionResult, PcPart, Snapshot, Source } from '../shared/types';
+import { steamData } from './online';
 import { detectAll, type MatchedGame } from './detect';
 import { cleanText, safeProgram } from './detect/files';
 import type { LaunchPlan } from './detect/types';
@@ -99,8 +101,44 @@ export async function refreshLibrary(): Promise<DetectionReport> {
   return { ...report, games: report.games.map((g, index) => ({ ...g, libraryId: ids[index] ?? null })) };
 }
 
+type SteamInput = NonNullable<Parameters<typeof buildRealSnapshot>[0]['steam']>;
+let steam: SteamInput | undefined;
+
+/** Relit Steam (amis, succès obtenus) si le compte est relié. Les données venues du service sont raccourcies et rapprochées de la bibliothèque. */
+export async function refreshSteam(force = false): Promise<void> {
+  const steamGames = inputs.filter((g) => g.steamId && g.catalogueId);
+  const { profile, achieved } = await steamData(steamGames.map((g) => g.steamId!), force);
+  if (!profile.linked) {
+    steam = undefined;
+    return;
+  }
+  const now = Date.now();
+  const friends = profile.friends.filter((f) => typeof f.name === 'string').map((f): FriendStatus => {
+    const playing = f.appId ? inputs.find((g) => g.steamId === f.appId) : undefined;
+    return {
+      name: cleanText(f.name, 40) || 'Ami Steam',
+      platform: 'Steam',
+      online: f.online === true,
+      state: f.online ? (f.game ? `Joue à ${cleanText(f.game, 80)}` : 'En ligne') : 'Hors ligne',
+      gameId: f.online && playing ? playing.id : null,
+      joinable: false,
+      since: f.online ? 'En ce moment' : f.lastSeen ? `Vu ${ago(f.lastSeen, now).toLowerCase()}` : '',
+      tagline: '',
+      friendSince: f.since ? `Ami sur Steam depuis ${new Date(f.since).getFullYear()}` : 'Ami sur Steam',
+      games: [],
+      activity: []
+    };
+  });
+  const obtained: SteamInput['achieved'] = {};
+  for (const g of steamGames) {
+    const list = achieved.get(g.steamId!);
+    if (list?.length) obtained[g.id] = Object.fromEntries(list.filter((a) => typeof a.name === 'string').map((a) => [a.name, Number(a.at) || 0]));
+  }
+  steam = { name: cleanText(profile.name, 40), friends, achieved: obtained };
+}
+
 export function realSnapshot(parts: PcPart[]): Snapshot {
-  return buildRealSnapshot({ games: inputs, parts, sessions: allSessions(), journal: journal(), now: Date.now() });
+  return buildRealSnapshot({ games: inputs, parts, sessions: allSessions(), journal: journal(), now: Date.now(), steam });
 }
 
 const done = (message: string, gameId?: string): GameActionResult & { gameId?: string } => ({ ok: true, simulated: false, message, gameId });

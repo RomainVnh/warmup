@@ -74,7 +74,7 @@ test('bibliothèque vierge : rien d\'inventé, heures et parties réelles', () =
   const snap = buildRealSnapshot({ games, parts: [{ name: 'Stockage', big: '12 Go libres', text: 'Peu de place.', status: 'warn' }], sessions, journal: [], now: NOW });
 
   assert.equal(snap.demo, false);
-  assert.deepEqual([snap.friends.length, snap.mods.length, snap.notices.length, snap.downloads.items.length], [0, 0, 0, 0]);
+  assert.deepEqual([snap.friends.length, snap.mods.length, snap.notices.length], [0, 0, 0]);
   // Le dernier jeu joué vient en premier.
   assert.deepEqual(snap.games.map((g) => g.id), ['manuel-chess', 'elden-ring', 'inconnu']);
 

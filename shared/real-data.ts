@@ -2,7 +2,7 @@ import { steamAchievements } from './achievements-data';
 import { guides } from './mock-extra';
 import { snapshot as catalogue } from './mock-data';
 import { gameNews } from './news-data';
-import type { Check, Game, JournalEntry, LaunchStep, PcPart, Report, Session, SessionRecord, Snapshot, Source } from './types';
+import type { Check, FriendStatus, Game, JournalEntry, LaunchStep, PcPart, Report, Session, SessionRecord, Snapshot, Source } from './types';
 
 // Version vierge : la bibliothèque n'est faite que de ce qui est lu sur ce PC.
 // Le catalogue (les jeux d'exemple) ne sert plus qu'à habiller un jeu reconnu : visuels, résumé, liste des succès, actualités.
@@ -163,13 +163,21 @@ export interface RealInput {
   sessions: SessionRecord[];
   journal: JournalEntry[];
   now: number;
+  /** Steam relié : pseudo, amis, et succès obtenus par identifiant de jeu (nom du succès → date). */
+  steam?: { name: string; friends: FriendStatus[]; achieved: Record<string, Record<string, number>> };
 }
 
-export function buildRealSnapshot({ games, parts, sessions, journal, now }: RealInput): Snapshot {
+export function buildRealSnapshot({ games, parts, sessions, journal, now, steam }: RealInput): Snapshot {
   // Jeux récents : la dernière partie d'abord, puis l'ordre alphabétique.
   const lastOf = (g: RealGameInput) => Math.max(g.platformLastPlayed ?? 0, ...sessions.filter((s) => s.gameId === g.id).map((s) => s.end), 0);
   const ordered = [...games].sort((a, b) => lastOf(b) - lastOf(a) || a.title.localeCompare(b.title, 'fr'));
-  const list = ordered.map((g, index) => game(g, parts, sessions, index + 1, now));
+  const list = ordered.map((g, index) => game(g, parts, sessions, index + 1, now)).map((g) => {
+    // Succès réellement obtenus, d'après Steam : rapprochés par leur nom.
+    const got = steam?.achieved[g.id];
+    if (!got) return g;
+    const achievements = g.achievements.list.map((a) => (got[a.name] !== undefined ? { ...a, when: ago(got[a.name] || now, now) } : a));
+    return { ...g, achievements: { ...g.achievements, list: achievements, done: achievements.filter((a) => a.when).length } };
+  });
 
   // Semaine en cours, du lundi au dimanche.
   const monday = new Date(now);
@@ -184,6 +192,7 @@ export function buildRealSnapshot({ games, parts, sessions, journal, now }: Real
   const titleOf = (id: string) => list.find((g) => g.id === id)?.title ?? 'Le jeu';
   return {
     demo: false,
+    steam: { linked: Boolean(steam), name: steam?.name ?? '' },
     games: list,
     week: {
       hours: hours.map((h) => Math.round(h * 10) / 10),
@@ -194,8 +203,7 @@ export function buildRealSnapshot({ games, parts, sessions, journal, now }: Real
     pc: { parts, issues: [], servers: [], log: [] },
     mods: [],
     reports: [...sessions].filter((s) => list.some((g) => g.id === s.gameId)).sort((a, b) => b.start - a.start).slice(0, 200).map((s) => report(s, titleOf(s.gameId), now)),
-    friends: [],
-    downloads: { items: [], speedMbPerSec: 0, diskFreeGb: 0, diskTotalGb: 0 },
+    friends: steam?.friends ?? [],
     notices: [],
     guides,
     profile: { name: 'Joueur', since: '', accounts: [], pc: parts.map((p) => ({ label: p.name, value: p.big })), stats: [] }

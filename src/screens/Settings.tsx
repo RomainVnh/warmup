@@ -9,8 +9,7 @@ export const SETTING_GROUPS: { title: string; rows: { key: keyof Settings; label
   {
     title: 'Lancement',
     rows: [
-      { key: 'launchWindow', label: 'Afficher la fenêtre de lancement', text: 'La petite fenêtre « Optimised by Warmup » qui montre les contrôles avant chaque jeu. Désactivée, les contrôles continuent en silence.' },
-      { key: 'pauseDownloads', label: 'Mettre les téléchargements en pause pendant le jeu', text: 'Ils reprennent tout seuls à la fin de la partie.' }
+      { key: 'launchWindow', label: 'Afficher la fenêtre de lancement', text: 'La petite fenêtre « Optimised by Warmup » qui montre les contrôles avant chaque jeu. Désactivée, les contrôles continuent en silence.' }
     ]
   },
   {
@@ -77,6 +76,8 @@ export function SettingsPage() {
             <button type="button" className="btn" onClick={() => updateAccount({ onboarded: false })}>Relancer</button>
           </div>
         </div>
+        {!data.demo && <h2 className="h2">Plateformes</h2>}
+        {!data.demo && <div className="group"><SteamLink /></div>}
         {data.demo && <h2 className="h2">Plateformes</h2>}
         {data.demo && <div className="group">
           <LinkStep linked={account.linked} onChange={(linked) => updateAccount({ linked })} />
@@ -171,5 +172,54 @@ function Detection() {
         </div>
       )}
     </div>
+  );
+}
+
+// Steam se relie par sa page officielle, ouverte dans le navigateur : Warmup ne voit jamais le mot de passe.
+// Les autres plateformes demandent un accord de leur éditeur : elles viendront plus tard.
+function SteamLink() {
+  const { data, reload, notify } = useApp();
+  const [service, setService] = useState(false);
+  const [waiting, setWaiting] = useState(false);
+  useEffect(() => {
+    void api.getAccountService().then((info) => setService(info.online)).catch(() => undefined);
+  }, []);
+
+  const link = async () => {
+    const result = await api.linkSteam().catch(() => ({ ok: false, message: 'La connexion à Steam n\'a pas pu démarrer.' }));
+    notify(result.message);
+    if (result.ok) setWaiting(true);
+  };
+  const finish = async () => {
+    await reload(true);
+    setWaiting(false);
+  };
+  const unlink = async () => {
+    const result = await api.unlinkSteam().catch(() => ({ ok: false, message: 'Steam n\'a pas pu être retiré.' }));
+    notify(result.message);
+    await reload(true);
+  };
+
+  return (
+    <>
+      <div className="list-row" style={{ flexWrap: 'nowrap', gap: 24 }}>
+        <div className="grow">
+          <div className="strong">Steam{data.steam.linked && data.steam.name ? ` · ${data.steam.name}` : ''}</div>
+          <div className="small muted" style={{ marginTop: 2 }}>
+            {data.steam.linked
+              ? 'Relié : vos amis Steam et vos succès obtenus sont affichés. Ils ne sont visibles que si votre profil Steam les rend publics.'
+              : service
+                ? 'Affiche vos amis Steam et vos succès obtenus. La connexion se fait sur la page officielle de Steam.'
+                : 'La connexion à Steam passe par le service en ligne de Warmup, qui n\'est pas encore en service.'}
+          </div>
+        </div>
+        {data.steam.linked
+          ? <button type="button" className="btn" onClick={() => void unlink()}>Retirer</button>
+          : waiting
+            ? <button type="button" className="btn btn-primary" onClick={() => void finish()}>J'ai terminé sur Steam</button>
+            : <button type="button" className="btn" disabled={!service} onClick={() => void link()}>Relier</button>}
+      </div>
+      <p className="small muted" style={{ paddingTop: 12 }}>Epic Games, GOG, Battle.net, Rockstar et Riot demandent chacun un accord de leur éditeur avant de pouvoir être reliés. Leurs jeux installés sont déjà détectés.</p>
+    </>
   );
 }
