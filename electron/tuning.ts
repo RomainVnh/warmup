@@ -25,9 +25,13 @@ export const HEAVY_LIMIT_MB = 800;
 export interface TuningState {
   /** Programmes de la liste ci-dessus actuellement ouverts. */
   procs: { name: string; path: string; memMb: number }[];
+  /** Mode Jeu de Windows (registre de l'utilisateur) : 1 activé, 0 désactivé, null valeur absente (activé par défaut). */
+  gameMode: number | null;
+  /** Planification GPU à accélération matérielle : 2 activée, 1 désactivée, null non proposée par la carte. */
+  hags: number | null;
 }
 
-export const emptyState = (): TuningState => ({ procs: [] });
+export const emptyState = (): TuningState => ({ procs: [], gameMode: null, hags: null });
 
 // Script fixe, envoyé encodé à PowerShell (aucune valeur venue de l'extérieur n'y entre).
 const STATE_SCRIPT = `
@@ -35,6 +39,10 @@ $ErrorActionPreference = 'SilentlyContinue'
 $r = [ordered]@{}
 $names = @(${HEAVY_EXE.map((exe) => `'${exe}'`).join(', ')})
 $r.procs = @(Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -and ($names -contains $_.Name.ToLower()) } | ForEach-Object { @{ name = $_.Name.ToLower(); path = $_.ExecutablePath; memMb = [math]::Round($_.WorkingSetSize / 1MB) } })
+$g = Get-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\GameBar' -Name AutoGameModeEnabled
+$r.gameMode = if ($g) { [int]$g.AutoGameModeEnabled } else { $null }
+$h = Get-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers' -Name HwSchMode
+$r.hags = if ($h) { [int]$h.HwSchMode } else { $null }
 $r | ConvertTo-Json -Compress -Depth 4
 `;
 
@@ -64,6 +72,9 @@ export function parseState(json: string): TuningState {
   state.procs = list<Record<string, unknown>>(raw.procs)
     .filter((p) => typeof p.name === 'string' && typeof p.path === 'string' && HEAVY_EXE.includes(p.name.toLowerCase()))
     .map((p) => ({ name: String(p.name).toLowerCase(), path: String(p.path), memMb: Math.max(0, Math.round(Number(p.memMb) || 0)) }));
+  const flag = (value: unknown, allowed: number[]) => (typeof value === 'number' && allowed.includes(value) ? value : null);
+  state.gameMode = flag(raw.gameMode, [0, 1]);
+  state.hags = flag(raw.hags, [1, 2]);
   return state;
 }
 
@@ -106,6 +117,35 @@ export function evaluate(state: TuningState): Tuning {
     });
   } else {
     parts.push({ name: 'Arrière-plan', big: apps.length ? `${size(heavy)} occupés` : 'Rien de gourmand', text: apps.length ? 'Les programmes ouverts laissent assez de mémoire au jeu.' : 'Aucun programme gourmand connu n\'est ouvert.', status: 'ok' });
+  }
+
+  // Mode Jeu : Windows donne la priorité au jeu et repousse ses propres tâches de fond.
+  if (state.gameMode === 0) {
+    parts.push({ name: 'Mode Jeu', big: 'Désactivé', text: 'Windows ne donne pas la priorité aux jeux.', status: 'warn' });
+    issues.push({
+      title: 'Activer le mode Jeu de Windows',
+      why: 'Le mode Jeu donne la priorité au jeu en cours et empêche Windows d\'installer des mises à jour ou de redémarrer pendant la partie. Il est désactivé sur ce PC.',
+      change: 'Warmup active le réglage « Mode Jeu » de Windows (le même que dans Paramètres > Jeux). « Annuler » dans le journal le remet comme avant.',
+      action: 'Activer le mode Jeu',
+      fix: 'mode-jeu'
+    });
+  } else {
+    parts.push({ name: 'Mode Jeu', big: 'Activé', text: 'Windows donne la priorité au jeu en cours.', status: 'ok' });
+  }
+
+  // Planification GPU : la carte graphique gère elle-même sa file d'images. Le réglage demande un redémarrage
+  // et des droits d'administrateur : Warmup ouvre la page de Windows plutôt que de le changer lui-même.
+  if (state.hags === 1) {
+    parts.push({ name: 'Planification GPU', big: 'Désactivée', text: 'La carte graphique la propose, mais elle n\'est pas activée.', status: 'warn' });
+    issues.push({
+      title: 'Activer la planification GPU',
+      why: 'Avec la « planification GPU à accélération matérielle », la carte graphique organise elle-même ses images : un peu moins de latence, et parfois quelques images par seconde en plus. Votre carte la propose.',
+      change: 'Warmup ouvre la page « Graphiques » des paramètres de Windows. Activez « Planification GPU à accélération matérielle », puis redémarrez le PC. Pour revenir en arrière, désactivez-la au même endroit.',
+      action: 'Ouvrir les réglages graphiques',
+      open: 'reglages-graphiques'
+    });
+  } else if (state.hags === 2) {
+    parts.push({ name: 'Planification GPU', big: 'Activée', text: 'La carte graphique organise elle-même ses images.', status: 'ok' });
   }
 
   return { parts, issues };

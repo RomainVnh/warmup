@@ -17,7 +17,7 @@ test('programmes gourmands : seuls ceux de la liste sont gardés, regroupés par
   assert.equal(state.procs.length, 3); // cmd.exe n'est pas dans la liste
   const apps = heavyApps(state);
   assert.deepEqual(apps.map((a) => [a.label, a.memMb, a.paths.length]), [['Google Chrome', 1500, 1], ['OneDrive', 150, 1]]);
-  assert.deepEqual(parseState('pas du json'), { procs: [] });
+  assert.deepEqual(parseState('pas du json').procs, []);
 });
 
 test('programmes gourmands : au-delà de 800 Mo, une correction est proposée, et rien en dessous', () => {
@@ -36,4 +36,17 @@ test('programmes gourmands : seul un programme de la liste, encore présent, peu
   assert.equal(relaunchable(42), false);
   assert.deepEqual(parsePaths('["C:\\\\Windows\\\\System32\\\\cmd.exe"]'), []);
   assert.deepEqual(parsePaths('pas du json'), []);
+});
+
+test('mode Jeu et planification GPU : lus dans le registre, corrigés ou expliqués', () => {
+  const off = evaluate(parseState(JSON.stringify({ procs: [], gameMode: 0, hags: 1 })));
+  assert.deepEqual(off.parts.map((p) => [p.name, p.status]), [['Arrière-plan', 'ok'], ['Mode Jeu', 'warn'], ['Planification GPU', 'warn']]);
+  assert.equal(off.issues.find((i) => i.fix === 'mode-jeu')?.action, 'Activer le mode Jeu');
+  assert.equal(off.issues.find((i) => i.open === 'reglages-graphiques')?.action, 'Ouvrir les réglages graphiques');
+  // Valeur absente : le mode Jeu est actif par défaut ; carte sans planification GPU : rien n'est affiché.
+  const fresh = evaluate(parseState(JSON.stringify({ procs: [] })));
+  assert.deepEqual(fresh.parts.map((p) => [p.name, p.status]), [['Arrière-plan', 'ok'], ['Mode Jeu', 'ok']]);
+  assert.equal(fresh.issues.length, 0);
+  // Valeurs inattendues écartées.
+  assert.equal(parseState(JSON.stringify({ gameMode: 7, hags: 'oui' })).gameMode, null);
 });

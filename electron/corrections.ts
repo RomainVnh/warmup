@@ -84,6 +84,19 @@ export async function closeForGame(gameTitle: string, gameId: string): Promise<(
   return () => void relaunch(closed.paths).then(() => markUndone(entry));
 }
 
+/* ───── Mode Jeu ───── */
+
+const GAME_BAR = 'HKCU\\Software\\Microsoft\\GameBar';
+
+/** Écrit la valeur du mode Jeu (1 ou 0), ou l'efface pour revenir au réglage par défaut de Windows. */
+async function setGameMode(value: '0' | '1' | 'absent'): Promise<boolean> {
+  const reg = system32('reg.exe');
+  const result = value === 'absent'
+    ? await exec(reg, ['delete', GAME_BAR, '/v', 'AutoGameModeEnabled', '/f'])
+    : await exec(reg, ['add', GAME_BAR, '/v', 'AutoGameModeEnabled', '/t', 'REG_DWORD', '/d', value, '/f']);
+  return result.ok;
+}
+
 /* ───── Application depuis le diagnostic ───── */
 
 export async function applyFix(id: FixId): Promise<FixResult> {
@@ -95,6 +108,13 @@ export async function applyFix(id: FixId): Promise<FixResult> {
       logAction({ kind: 'programmes', title: `${listing(closed.labels)} ${closed.labels.length > 1 ? 'fermés' : 'fermé'}`, detail: 'Depuis le diagnostic, pour laisser plus de mémoire aux jeux. « Annuler » les rouvre.', data: JSON.stringify(closed.paths) });
       return { ok: true, message: `${listing(closed.labels)} ${closed.labels.length > 1 ? 'ont été fermés' : 'a été fermé'}. Le journal permet de ${closed.labels.length > 1 ? 'les' : 'le'} rouvrir.` };
     }
+    case 'mode-jeu': {
+      const before = (await readState()).gameMode;
+      if (before === 1 || before === null) return { ok: false, message: 'Le mode Jeu est déjà activé.' };
+      if (!(await setGameMode('1'))) return { ok: false, message: 'Windows a refusé le changement. Rien n\'a été modifié.' };
+      logAction({ kind: 'mode-jeu', title: 'Mode Jeu de Windows activé', detail: 'Windows donne la priorité au jeu en cours et ne redémarre plus pendant une partie. « Annuler » le désactive à nouveau.', data: String(before) });
+      return { ok: true, message: 'Le mode Jeu est activé.' };
+    }
     default:
       return { ok: false, message: 'Cette correction n\'est pas encore disponible.' };
   }
@@ -103,4 +123,6 @@ export async function applyFix(id: FixId): Promise<FixResult> {
 /** Fonctions d'annulation, une par correction. */
 export function registerCorrections(): void {
   registerUndo('programmes', (entry) => relaunch(parsePaths(entry.data)));
+  // Valeur d'origine notée dans le journal : 0 (désactivé). Toute autre valeur rétablit le réglage par défaut.
+  registerUndo('mode-jeu', (entry) => setGameMode(entry.data === '0' ? '0' : 'absent'));
 }
