@@ -115,7 +115,7 @@ Ils ne sont pas encore signés : Windows et macOS affichent un avertissement au 
 
 ### Pour développer
 
-Il faut [Node.js](https://nodejs.org) 20 ou plus récent.
+Nécessite [Node.js](https://nodejs.org) 20 ou plus récent.
 
 ```bash
 git clone git@github.com:RomainVnh/warmup.git
@@ -231,11 +231,10 @@ Les vraies fonctions Windows remplacent les réponses dans `electron/`, jamais d
 python3 outils/ajouter-jeu-steam.py <identifiant> <numéro-Steam>
 ```
 
-Le script télécharge les visuels et les succès du jeu. Le détail est dans [`AJOUTER-UN-JEU.txt`](AJOUTER-UN-JEU.txt).
+Le script télécharge les visuels et les succès du jeu. Les détails des étapes de développement sont disponibles dans [`AJOUTER-UN-JEU.txt`](AJOUTER-UN-JEU.txt).
 
 ## Sécurité
 
-Ces points ne se négocient pas :
 
 - **Fenêtre isolée** : `contextIsolation: true`, `sandbox: true`, `nodeIntegration: false`, et une règle de sécurité du contenu stricte dans la version livrée.
 - **Aucun secret dans le dépôt ni dans l'application.** La clé du service d'IA restera sur un serveur.
@@ -270,14 +269,3 @@ Les deux commandes fonctionnent depuis un Mac et déposent leurs fichiers dans `
 - [ ] Serveur : comptes, lien de connexion par e-mail, assistant
 - [ ] Connexions officielles aux plateformes
 - [ ] Signature des installateurs et mise à jour automatique
-
-## Avant de rendre le dépôt public
-
-Ce dépôt est privé pour l'instant. Deux points sont à régler avant de l'ouvrir :
-
-- **Visuels des jeux.** `public/art/` et `docs/captures/` contiennent des jaquettes, logos, captures et icônes de succès qui appartiennent aux éditeurs des jeux. Ils servent ici de données d'exemple et ne doivent pas être publiés tels quels : il faudra les retirer de l'historique ou les remplacer. La liste complète des fichiers concernés et de leur origine est dans [`SOURCES.md`](SOURCES.md).
-- **Licence.** Aucune n'est choisie : sans licence, personne d'autre n'a le droit de réutiliser le code.
-
-## Licence
-
-Tous droits réservés pour l'instant. Les noms, logos et visuels des jeux appartiennent à leurs éditeurs respectifs ; Warmup n'est affilié à aucun d'eux.
