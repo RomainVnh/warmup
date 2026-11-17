@@ -80,7 +80,7 @@ Trois règles guident tout le reste :
 
 ## État du projet
 
-Une application installée est **vierge** : elle ne montre que ce qu'elle lit sur le PC (jeux installés, matériel, heures de jeu, parties mesurées). La **version de test**, avec ses jeux et ses chiffres d'exemple, est réservée au compte admin et au développement (`npm run dev`).
+Une application installée est **vierge** : elle ne montre que ce qu'elle lit sur le PC (jeux installés, matériel, heures de jeu, parties mesurées). La **version de test**, avec ses jeux et ses chiffres d'exemple sont fictifs, est réservée au compte admin et au développement (`npm run dev`).
 
 | Élément | État |
 | --- | --- |
