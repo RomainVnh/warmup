@@ -92,10 +92,10 @@ Une application installée est **vierge** : elle ne montre que ce qu'elle lit su
 | Heures de jeu et bilans de parties (durée, mémoire, processeur) | Fonctionne |
 | Journal des actions, avec « Annuler » | En place |
 | Installateurs Mac et Windows | Fabriqués, non signés |
-| Contrôles avant lancement | OK |
-| Corrections avant lancement, images par seconde, ping | OK |
+| Contrôles avant lancement | Fonctionne |
+| Corrections avant lancement, images par seconde, ping | Fonctionne |
 | Compte | Enregistré sur le PC ; lien par e-mail (prochainement) et synchronisation (serveur) |
-| Connexions officielles aux plateformes | À faire |
+| Connexions officielles aux plateformes | En cours de développement|
 | Coach (assistant) | (fonctionnalité en cours de développement destinée à une version ultérieure) |
 
 Les jeux affichés sont réels ; leurs succès et leurs actualités aussi. Les heures de jeu, les mesures et les incidents sont inventés.
