@@ -11,7 +11,7 @@
 
 <p align="center">
   Electron · React · TypeScript · Vite<br>
-  <sub>Version 0.4.0 · en développement · Windows (cible) et macOS</sub>
+  <sub>Version 0.4.0 · en développement · Windows et macOS (prototype)</sub>
 </p>
 
 <p align="center">
