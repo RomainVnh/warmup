@@ -5,6 +5,8 @@ import { snapshot as demoSnapshot } from '../shared/mock-data';
 import { detectAll, type MatchedGame } from './detect';
 import { readPc } from './hardware';
 import { boostPower, restorePower } from './fixes';
+import { applyFix, closeForGame, registerCorrections } from './corrections';
+import { evaluate, readState } from './tuning';
 import { journal, loadDemoJournal, loadJournal, logAction, markUndone, registerUndo, undo } from './journal';
 import { openFolder, openGame, withArgs } from './launch';
 import { addManualGame, findLibraryGame, loadManualGames, realSnapshot, refreshLibrary, refreshSteam, removeManualGame, renameManualGame } from './library';
@@ -14,7 +16,7 @@ import { hasSession, loadSession, onlineAdmin, pushData, requestCode, serviceAva
 import { readJson, writeJson } from './store';
 import { loadSessions, setFpsTool, stopTracking, trackGame } from './sessions';
 import { simulateLaunch } from '../shared/launch-sim';
-import { cleanFavorites, isEmail, type LoginResult, cleanAccount, cleanAllGameOptions, cleanGameOptions, cleanCollections, defaultGameOptions, splitArgs, cleanProfileCard, defaultAccount, defaultProfileCard, defaultSettings, settingKeys, type Account, type Collection, type GameActionResult, type GameFiles, type GameOptions, type LaunchEvent, type PcReport, type ProfileCard, type Settings, type Snapshot, type Source } from '../shared/types';
+import { cleanFavorites, isEmail, type LoginResult, cleanAccount, cleanAllGameOptions, cleanGameOptions, cleanCollections, defaultGameOptions, splitArgs, cleanProfileCard, defaultAccount, defaultProfileCard, defaultSettings, settingKeys, type Account, type Collection, type FixId, type FixResult, type OpenTarget, type GameActionResult, type GameFiles, type GameOptions, type LaunchEvent, type PcReport, type ProfileCard, type Settings, type Snapshot, type Source } from '../shared/types';
 
 // Partie système. C'est le seul endroit qui a le droit de toucher au PC.
 // Version vierge (la règle) : elle ne montre que ce qu'elle lit sur ce PC (electron/library.ts).
@@ -162,18 +164,37 @@ async function copyOf(gameId: unknown): Promise<Copy | undefined> {
 
 // Version vierge : la bibliothèque et le matériel sont relus, au plus une fois toutes les dix secondes.
 let pcCache: { at: number; report: PcReport } | null = null;
+
+/** Matériel, puis réglages de Windows qui comptent pour jouer (Windows seulement), avec ce qui peut être corrigé. */
+async function readPcAll(): Promise<PcReport> {
+  const [report, state] = await Promise.all([readPc(), process.platform === 'win32' ? readState() : Promise.resolve(null)]);
+  if (!state) return report;
+  const tuning = evaluate(state);
+  return { ...report, parts: [...report.parts, ...tuning.parts], issues: [...tuning.issues, ...report.issues] };
+}
+
+const FIXES: FixId[] = ['programmes', 'mode-jeu', 'frequence', 'mesure-fps'];
+// Pages officielles, adresses fixes : réglages de Windows et sites des fabricants de cartes graphiques.
+const OFFICIAL: Record<OpenTarget, string> = {
+  'reglages-graphiques': 'ms-settings:display-advancedgraphics',
+  'windows-update': 'ms-settings:windowsupdate',
+  stockage: 'ms-settings:storagesense',
+  'pilote-nvidia': 'https://www.nvidia.com/fr-fr/drivers/',
+  'pilote-amd': 'https://www.amd.com/fr/support/download/drivers.html',
+  'pilote-intel': 'https://www.intel.fr/content/www/fr/fr/support/detect.html'
+};
 let builtAt = 0;
 async function buildReal(force = false): Promise<Snapshot> {
   if (!force && realData && Date.now() - builtAt < 10_000) return realData;
   await refreshLibrary();
   await refreshSteam(force);
-  if (!pcCache || Date.now() - pcCache.at > 60_000) pcCache = { at: Date.now(), report: await readPc() };
-  realData = realSnapshot(pcCache.report.parts);
+  if (!pcCache || Date.now() - pcCache.at > 60_000) pcCache = { at: Date.now(), report: await readPcAll() };
+  realData = realSnapshot(pcCache.report.parts, pcCache.report.issues);
   builtAt = Date.now();
   return realData;
 }
 const rebuildReal = (): void => {
-  if (pcCache) realData = realSnapshot(pcCache.report.parts);
+  if (pcCache) realData = realSnapshot(pcCache.report.parts, pcCache.report.issues);
   builtAt = Date.now();
 };
 let collections: Collection[] = [];
@@ -320,9 +341,29 @@ function registerActions(): void {
   // Version de test : le matériel reste celui de l'exemple.
   ipcMain.handle('pc:report', async (): Promise<PcReport> => {
     if (demo) return { example: true, checkedAt: 'Contrôlé il y a 2 minutes', parts: demoSnapshot.pc.parts, issues: demoSnapshot.pc.issues };
-    pcCache = { at: Date.now(), report: await readPc() };
+    pcCache = { at: Date.now(), report: await readPcAll() };
     rebuildReal();
     return pcCache.report;
+  });
+  // Corrections prédéfinies : seul leur identifiant arrive de l'interface.
+  ipcMain.handle('fix:apply', async (_event, id: unknown): Promise<FixResult> => {
+    if (typeof id !== 'string' || !FIXES.includes(id as FixId)) return { ok: false, message: 'Correction inconnue.' };
+    if (demo) return { ok: true, message: 'Version de test : la correction est un exemple, rien n\'a été modifié sur ce PC.' };
+    const result = await applyFix(id as FixId);
+    pcCache = { at: Date.now(), report: await readPcAll() };
+    rebuildReal();
+    return result;
+  });
+  ipcMain.handle('official:open', async (_event, target: unknown): Promise<FixResult> => {
+    if (typeof target !== 'string' || !(target in OFFICIAL)) return { ok: false, message: 'Page inconnue.' };
+    const url = OFFICIAL[target as OpenTarget];
+    if (url.startsWith('ms-settings:') && process.platform !== 'win32') return { ok: false, message: 'Ce réglage se trouve dans Windows.' };
+    try {
+      await shell.openExternal(url);
+      return { ok: true, message: url.startsWith('ms-settings:') ? 'Les réglages de Windows sont ouverts.' : 'La page officielle est ouverte dans votre navigateur.' };
+    } catch {
+      return { ok: false, message: 'La page n\'a pas pu être ouverte.' };
+    }
   });
 
   // Ajout d'un jeu à la main : c'est la partie système qui ouvre le sélecteur de fichiers ; l'interface n'envoie aucun chemin.
@@ -406,11 +447,15 @@ function registerActions(): void {
     const options = optionsFor(game.id);
     const plan = installed?.launch && installed.complete ? withArgs(installed.launch, splitArgs(options.args)) : null;
     let cancelled = false;
-    const start = () => {
+    const start = async () => {
       if (!plan) return send(demo ? { type: 'started', real: false } : { type: 'failed', reason: 'Warmup ne sait pas encore lancer ce jeu. Ouvrez-le depuis sa plateforme.' });
+      // Correction activée dans les réglages : les programmes gourmands sont fermés avant le jeu, et rouverts après.
+      const reopen = !demo && installed && settings.closeApps ? await closeForGame(game.title, game.id) : null;
+      if (cancelled) return reopen?.();
       void openGame(plan).then(async (result) => {
-        if (cancelled) return;
+        if (cancelled) return reopen?.();
         send(result.ok ? { type: 'started', real: true } : { type: 'failed', reason: result.reason });
+        if (!result.ok) reopen?.();
         // Version vierge : la partie est suivie de l'extérieur, pour de vraies heures de jeu et un vrai bilan.
         if (!result.ok || demo || !installed) return;
         // Correction activée dans les réglages : Windows passe en « Performances élevées » pendant la partie.
@@ -421,19 +466,20 @@ function registerActions(): void {
         trackGame(game.id, installed.folder, () => {
           // Fin de la partie : le mode d'origine est rétabli, et le journal le note.
           if (power && entry) void restorePower(power.previous).then((done) => done && markUndone(entry));
+          reopen?.();
           rebuildReal();
         });
       });
     };
     // Contrôles désactivés pour ce jeu : il s'ouvre tout de suite.
     if (!options.checks) {
-      start();
+      void start();
       cancelLaunch = () => { cancelled = true; };
       return;
     }
     const stopSimulation = simulateLaunch(game.launch.steps.length, (launchEvent: LaunchEvent) => {
       if (launchEvent.type !== 'started') return send(launchEvent);
-      start();
+      void start();
     });
     cancelLaunch = () => {
       cancelled = true;
@@ -494,6 +540,7 @@ app.whenReady().then(() => {
   profileCard = readProfileCard();
   // Annulation d'une correction d'alimentation depuis le journal : le mode d'origine est rétabli tout de suite.
   registerUndo('alimentation', (entry) => restorePower(entry.data ?? ''));
+  registerCorrections();
   // Images par seconde : PresentMon est livré avec l'installateur Windows, à un emplacement fixe.
   setFpsTool(app.isPackaged ? path.join(process.resourcesPath, 'presentmon', 'PresentMon.exe') : path.join(__dirname, '../../build/presentmon/PresentMon.exe'));
   account = readAccount();

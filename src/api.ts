@@ -204,6 +204,8 @@ const webApi: WarmupApi = {
   openGameFolder: () => simulated('Exemple : dans l\'application installée, le dossier du jeu s\'ouvre dans l\'explorateur.'),
   verifyGameFiles: () => simulated('Exemple : dans l\'application installée, Steam vérifie les fichiers et répare ceux qui manquent.'),
   uninstallGame: (gameId) => simulated(`${snapshot.games.find((g) => g.id === gameId)?.title ?? 'Le jeu'} est désinstallé (exemple : rien n'a été supprimé sur ce PC).`),
+  applyFix: async () => ({ ok: true, message: 'Exemple : la correction s\'applique dans l\'application installée sous Windows. Rien n\'a été modifié.' }),
+  openOfficial: async () => ({ ok: true, message: 'Exemple : la page officielle s\'ouvre dans l\'application installée.' }),
   getPcReport: async () => ({ example: true, checkedAt: 'Contrôlé il y a 2 minutes', parts: snapshot.pc.parts, issues: snapshot.pc.issues }),
   detectGames: async () => exampleDetection,
   startLaunch(gameId, onEvent) {

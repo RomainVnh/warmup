@@ -3,7 +3,7 @@ import { BrowserWindow, dialog } from 'electron';
 import { snapshot as catalogue } from '../shared/mock-data';
 import { buildRealSnapshot, type RealGameInput } from '../shared/real-data';
 import { ago } from '../shared/real-data';
-import type { DetectionReport, DetectSource, FriendStatus, GameActionResult, PcPart, Snapshot, Source } from '../shared/types';
+import type { DetectionReport, DetectSource, FriendStatus, GameActionResult, PcIssue, PcPart, Snapshot, Source } from '../shared/types';
 import { steamData } from './online';
 import { detectAll, type MatchedGame } from './detect';
 import { cleanText, safeProgram } from './detect/files';
@@ -137,8 +137,8 @@ export async function refreshSteam(force = false): Promise<void> {
   steam = { name: cleanText(profile.name, 40), friends, achieved: obtained };
 }
 
-export function realSnapshot(parts: PcPart[]): Snapshot {
-  return buildRealSnapshot({ games: inputs, parts, sessions: allSessions(), journal: journal(), now: Date.now(), steam });
+export function realSnapshot(parts: PcPart[], issues: PcIssue[] = []): Snapshot {
+  return buildRealSnapshot({ games: inputs, parts, issues, sessions: allSessions(), journal: journal(), now: Date.now(), steam });
 }
 
 const done = (message: string, gameId?: string): GameActionResult & { gameId?: string } => ({ ok: true, simulated: false, message, gameId });

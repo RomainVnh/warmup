@@ -4,7 +4,7 @@ import { guides } from './mock-extra';
 import { snapshot as catalogue } from './mock-data';
 import { gameNews } from './news-data';
 import { reportTimeline } from './timeline';
-import type { Check, FriendStatus, Game, JournalEntry, LaunchStep, PcPart, Report, Session, SessionRecord, Snapshot, Source } from './types';
+import type { Check, FriendStatus, Game, JournalEntry, LaunchStep, PcIssue, PcPart, Report, Session, SessionRecord, Snapshot, Source } from './types';
 
 // Version vierge : la bibliothèque n'est faite que de ce qui est lu sur ce PC.
 // Le catalogue (les jeux d'exemple) ne sert plus qu'à habiller un jeu reconnu : visuels, résumé, liste des succès, actualités.
@@ -209,6 +209,8 @@ function game(input: RealGameInput, parts: PcPart[], sessions: SessionRecord[], 
 export interface RealInput {
   games: RealGameInput[];
   parts: PcPart[];
+  /** Points à améliorer, avec la correction ou la page officielle qui va avec. */
+  issues?: PcIssue[];
   sessions: SessionRecord[];
   journal: JournalEntry[];
   now: number;
@@ -216,7 +218,7 @@ export interface RealInput {
   steam?: { name: string; friends: FriendStatus[]; achieved: Record<string, Record<string, number>> };
 }
 
-export function buildRealSnapshot({ games, parts, sessions, journal, now, steam }: RealInput): Snapshot {
+export function buildRealSnapshot({ games, parts, issues = [], sessions, journal, now, steam }: RealInput): Snapshot {
   // Jeux récents : la dernière partie d'abord, puis l'ordre alphabétique.
   const lastOf = (g: RealGameInput) => Math.max(g.platformLastPlayed ?? 0, ...sessions.filter((s) => s.gameId === g.id).map((s) => s.end), 0);
   const ordered = [...games].sort((a, b) => lastOf(b) - lastOf(a) || a.title.localeCompare(b.title, 'fr'));
@@ -249,7 +251,7 @@ export function buildRealSnapshot({ games, parts, sessions, journal, now, steam 
       cleanLaunches: week.length ? `${clean} sur ${week.length}` : '0',
       fixes: String(journal.filter((j) => j.at >= monday.getTime() && j.undoable && !j.undone).length)
     },
-    pc: { parts, issues: [], servers: [], log: [] },
+    pc: { parts, issues, servers: [], log: [] },
     mods: [],
     reports: [...sessions].filter((s) => list.some((g) => g.id === s.gameId)).sort((a, b) => b.start - a.start).slice(0, 200).map((s) => report(s, titleOf(s.gameId), now)),
     friends: steam?.friends ?? [],

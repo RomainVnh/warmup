@@ -1,11 +1,11 @@
-import { useState } from 'react';
-import type { PcPart } from '../../shared/types';
+import { useEffect, useState } from 'react';
+import type { PcIssue, PcPart } from '../../shared/types';
 import { api } from '../api';
 import { useApp } from '../context';
 import { Ambient, Icon, Ring, Stat, StatusText } from '../ui';
 
 export function Diagnostic() {
-  const { data, notify, journal, undoFix } = useApp();
+  const { data, notify, journal, undoFix, reload } = useApp();
   const { servers } = data.pc;
   const [parts, setParts] = useState<PcPart[]>(data.pc.parts);
   const [checkedAt, setCheckedAt] = useState('Contrôlé à l\'ouverture de Warmup');
@@ -17,6 +17,8 @@ export function Diagnostic() {
     try {
       const report = await api.getPcReport();
       setParts(report.parts);
+      setIssues(report.issues);
+      if (!report.example) void reload();
       setCheckedAt(report.checkedAt);
       notify(report.example ? 'Exemple de diagnostic : la vraie lecture du PC se fait dans l\'application installée.' : 'Diagnostic relancé : le matériel a été relu.');
     } catch {
@@ -26,6 +28,28 @@ export function Diagnostic() {
     }
   };
   const [issues, setIssues] = useState(data.pc.issues);
+  const [busy, setBusy] = useState<string | null>(null);
+  // Version vierge : après une correction ou une partie, le diagnostic suit la dernière lecture du PC.
+  useEffect(() => {
+    if (data.demo) return;
+    setParts(data.pc.parts);
+    setIssues(data.pc.issues);
+  }, [data.demo, data.pc]);
+
+  // Une correction prédéfinie, ou une page officielle quand la correction se fait à la main.
+  const act = async (issue: PcIssue) => {
+    if (!issue.fix && !issue.open) return notify(`${issue.action} : disponible avec la version Windows.`);
+    setBusy(issue.title);
+    try {
+      const result = issue.fix ? await api.applyFix(issue.fix) : await api.openOfficial(issue.open!);
+      notify(result.message, result.ok && issue.fix ? { label: 'Voir le journal', href: '#/journal' } : undefined);
+      if (issue.fix && !data.demo) await reload();
+    } catch {
+      notify('La correction n\'a pas pu être appliquée. Rien n\'a été modifié.');
+    } finally {
+      setBusy(null);
+    }
+  };
   const good = parts.filter((p) => p.status === 'ok').length;
   const allGood = good === parts.length;
 
@@ -61,7 +85,7 @@ export function Diagnostic() {
             <div className="row">
               {issue.guideId
                 ? <a className="btn btn-primary" href={`#/guide/${issue.guideId}`}>{issue.action}</a>
-                : <button type="button" className="btn btn-primary" onClick={() => notify(`${issue.action} : disponible avec la version Windows.`)}>{issue.action}</button>}
+                : <button type="button" className="btn btn-primary" onClick={() => void act(issue)} disabled={busy !== null}>{busy === issue.title ? 'En cours…' : issue.action}</button>}
               <button type="button" className="btn" onClick={() => setIssues((list) => list.filter((x) => x.title !== issue.title))}>Ignorer</button>
             </div>
           </article>

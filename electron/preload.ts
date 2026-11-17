@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
-import type { Account, Collection, GameOptions, LaunchEvent, WarmupApi, ProfileCard, Settings } from '../shared/types';
+import type { Account, Collection, FixId, GameOptions, OpenTarget, LaunchEvent, WarmupApi, ProfileCard, Settings } from '../shared/types';
 
 // Le pont entre l'interface et la partie système.
 // Seules les actions listées ici existent du côté de l'interface.
@@ -32,6 +32,8 @@ const api: WarmupApi = {
   verifyGameFiles: (gameId: string) => ipcRenderer.invoke('game:verify', gameId),
   uninstallGame: (gameId: string) => ipcRenderer.invoke('game:uninstall', gameId),
   getPcReport: () => ipcRenderer.invoke('pc:report'),
+  applyFix: (id: FixId) => ipcRenderer.invoke('fix:apply', id),
+  openOfficial: (target: OpenTarget) => ipcRenderer.invoke('official:open', target),
   detectGames: () => ipcRenderer.invoke('games:detect'),
   startLaunch(gameId, onEvent) {
     const listener = (_event: IpcRendererEvent, launchEvent: LaunchEvent) => onEvent(launchEvent);

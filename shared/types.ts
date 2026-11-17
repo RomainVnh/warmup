@@ -88,7 +88,13 @@ export interface GraphicsAdvice {
 }
 
 export interface PcPart { name: string; big: string; text: string; status: Status }
-export interface PcIssue { title: string; why: string; change: string; action: string; guideId?: string }
+/** Corrections prédéfinies que Warmup sait appliquer, puis annuler. */
+export type FixId = 'programmes' | 'mode-jeu' | 'frequence' | 'mesure-fps';
+/** Pages officielles que Warmup peut ouvrir quand la correction se fait à la main (réglages de Windows, sites des fabricants). */
+export type OpenTarget = 'reglages-graphiques' | 'windows-update' | 'stockage' | 'pilote-nvidia' | 'pilote-amd' | 'pilote-intel';
+/** Point à améliorer. `fix` : correction prédéfinie, appliquée par Warmup. `open` : page officielle à ouvrir. Sans l'un ni l'autre : un guide. */
+export interface PcIssue { title: string; why: string; change: string; action: string; guideId?: string; fix?: FixId; open?: OpenTarget }
+export interface FixResult { ok: boolean; message: string }
 /** Matériel du PC. example vaut vrai dans le navigateur, où rien ne peut être lu. */
 export interface PcReport { example: boolean; checkedAt: string; parts: PcPart[]; issues: PcIssue[] }
 export interface ServerState { game: string; region: string; ping: string; state: string; status: Status }
@@ -237,6 +243,8 @@ export interface Settings {
   startWithWindows: boolean;
   /** Correction : passer Windows en « Performances élevées » pendant une partie, puis rétablir le mode d'origine. */
   powerBoost: boolean;
+  /** Correction : fermer les programmes gourmands au lancement d'un jeu, puis les rouvrir à la fin de la partie. */
+  closeApps: boolean;
 }
 
 export const defaultSettings: Settings = {
@@ -244,7 +252,8 @@ export const defaultSettings: Settings = {
   askBeforeFix: true,
   shareCatalog: false,
   startWithWindows: false,
-  powerBoost: false
+  powerBoost: false,
+  closeApps: false
 };
 
 export const settingKeys = Object.keys(defaultSettings) as (keyof Settings)[];
@@ -472,6 +481,10 @@ export interface WarmupApi {
   uninstallGame(gameId: string): Promise<GameActionResult>;
   /** Lit le matériel du PC (écran, carte graphique, mémoire…). Lecture seule. */
   getPcReport(): Promise<PcReport>;
+  /** Applique une correction prédéfinie, notée dans le journal et annulable. */
+  applyFix(id: FixId): Promise<FixResult>;
+  /** Ouvre une page officielle : réglages de Windows ou site du fabricant du pilote. */
+  openOfficial(target: OpenTarget): Promise<FixResult>;
   /** Cherche les jeux installés sur le PC. Lecture seule. */
   detectGames(): Promise<DetectionReport>;
   startLaunch(gameId: string, onEvent: (event: LaunchEvent) => void): () => void;

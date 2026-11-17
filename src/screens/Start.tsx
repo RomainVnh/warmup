@@ -15,7 +15,7 @@ interface Step {
 function useSteps(): Step[] {
   const { data, installed, addGame, play } = useApp();
   const games = data.games.filter((g) => installed.has(g.id));
-  const issues = data.pc.issues.length + data.pc.parts.filter((p) => p.status === 'warn').length;
+  const issues = Math.max(data.pc.issues.length, data.pc.parts.filter((p) => p.status === 'warn').length);
   const first: Game | undefined = games[0];
   return [
     {
