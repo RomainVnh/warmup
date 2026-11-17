@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../context';
 import { EmptyState, GameArt, GameCard, GameLogo, Icon, Pill, PlayButton, Segmented, sourceLabel } from '../ui';
+import { MeasuresExplainer, StartPage, StartSteps } from './Start';
 
 type Shelf = 'recent' | 'favorites' | 'check';
 const DAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
@@ -35,6 +36,8 @@ export function Home() {
 
   // Aucun jeu installé : pas de grand visuel, mais ce qu'il faut faire pour commencer.
   if (!featured) {
+    // Version vierge : une vraie page de premiers pas, avec ce qui est déjà lu sur le PC.
+    if (!data.demo) return <StartPage />;
     const owned = data.games.filter((g) => !onDisk.has(g.id));
     return (
       <div className="page home-empty">
@@ -97,7 +100,8 @@ export function Home() {
       </section>
 
       <div className="page home-page">
-        <section aria-label="Vos jeux">
+        {!data.demo && <StartSteps compact />}
+        <section className={!data.demo ? 'section' : undefined} aria-label="Vos jeux">
           <div className="section-head">
             <h2 className="h2">Vos jeux</h2>
             <div className="row">
@@ -130,7 +134,7 @@ export function Home() {
           )}
         </section>
 
-        <section className="section" aria-label="Votre semaine">
+        {!data.demo && !data.reports.length ? <MeasuresExplainer /> : <section className="section" aria-label="Votre semaine">
           <div className="section-head"><h2 className="h2">Votre semaine</h2><a className="link" href="#/reports">Tous les bilans</a></div>
           <div className="strip">
             <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'nowrap' }}>
@@ -163,7 +167,7 @@ export function Home() {
               </a>
             )}
           </div>
-        </section>
+        </section>}
       </div>
     </>
   );

@@ -77,7 +77,7 @@ export function SettingsPage() {
           </div>
         </div>
         {!data.demo && <h2 className="h2">Plateformes</h2>}
-        {!data.demo && <div className="group"><SteamLink /></div>}
+        {!data.demo && <div className="group" id="reglage-steam"><SteamLink /></div>}
         {data.demo && <h2 className="h2">Plateformes</h2>}
         {data.demo && <div className="group">
           <LinkStep linked={account.linked} onChange={(linked) => updateAccount({ linked })} />
@@ -183,6 +183,8 @@ function SteamLink() {
   const [waiting, setWaiting] = useState(false);
   useEffect(() => {
     void api.getAccountService().then((info) => setService(info.online)).catch(() => undefined);
+    // Arrivée depuis « Relier Steam » (#/settings/steam) : on montre la section.
+    if (window.location.hash.startsWith('#/settings/steam')) document.getElementById('reglage-steam')?.scrollIntoView({ block: 'center' });
   }, []);
 
   const link = async () => {

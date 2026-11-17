@@ -952,3 +952,29 @@ a.list-row .link { flex: none; }
   .home-hero .hero-body { padding-bottom: 96px; }
   .hero.compact { min-height: 340px; }
 }
+
+/* Premiers pas (version vierge) : ce qui est déjà lu, ce qu'il reste à faire, ce que Warmup mesurera */
+.start-page { padding-top: 40px; }
+.start-head { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; max-width: 760px; }
+.start-head .eyebrow { margin-top: 10px; }
+.start-title { font-size: clamp(28px, 3.2vw, 40px); line-height: 1.12; font-weight: 500; letter-spacing: -0.01em; }
+.start-lead { color: var(--text-2); font-size: 16px; line-height: 1.6; max-width: 62ch; }
+.start-actions { gap: 12px; margin-top: 8px; }
+.start-count { font-family: var(--mono); font-size: 12px; letter-spacing: 0.1em; color: var(--muted); }
+.start-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.start-step { display: flex; flex-direction: column; gap: 12px; padding: 20px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.start-step .start-body { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.start-step .start-body p { line-height: 1.55; }
+.start-step .btn { align-self: flex-start; }
+.start-mark { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--line-strong); font-family: var(--mono); font-size: 13px; color: var(--text); }
+.start-step.done { background: transparent; }
+.start-step.done .start-mark { border-color: transparent; background: rgba(95, 212, 122, 0.14); color: var(--ok); }
+.start-step.done .strong { color: var(--text-2); }
+.measures { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 28px; }
+.measure { display: flex; flex-direction: column; gap: 6px; }
+.measure p { line-height: 1.55; }
+.measure-icon { display: grid; place-items: center; width: 40px; height: 40px; margin-bottom: 6px; border-radius: 10px; background: var(--panel-2); color: var(--text); }
+.measures-note { display: flex; align-items: center; gap: 8px; margin-top: 22px; }
+.start-pc { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0; border-top: 1px solid var(--line); }
+.start-pc li { display: flex; flex-direction: column; gap: 6px; padding: 18px 20px 18px 0; border-bottom: 1px solid var(--line); }
+.start-pc .pill { font-size: 12px; }
