@@ -167,3 +167,5 @@ que l'identifiant est bien le même dans le dossier de visuels et dans la fiche.
 - Les heures, amis, avis et incidents sont des données d'exemple inventées.
 - Sous Windows, les jeux seront détectés automatiquement : ce guide ne concerne
   que les données d'exemple.
+
+Enfin, pour la version vierge : python3 outils/visuels-steam.py (adresses exactes des visuels et des images d'actualités chez Steam).

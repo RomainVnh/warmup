@@ -64,3 +64,24 @@ test('effet des corrections : avant / après jeu par jeu, et avec / sans à chaq
   assert.equal(neutral[boost(2).id].headline, 'Aucune différence nette avec cette correction');
   assert.equal(neutral[boost(2).id].basis, '2 parties avec, 2 sans, sur 1 jeu');
 });
+
+test('visuels Steam : adresses exactes du catalogue, images d\'actualités, et adresses lues chez Steam vérifiées', async () => {
+  const { STEAM_ASSETS, NEWS_IMAGES } = await import('../shared/catalogue-steam-assets');
+  const { assetsFrom } = await import('./steam-assets');
+  // Call of Duty MW4 range ses visuels dans un dossier à code : l'adresse habituelle ne marche pas pour lui.
+  assert.match(STEAM_ASSETS['call-of-duty-mw4'].art ?? '', /^https:\/\/shared\.akamai\.steamstatic\.com\/store_item_assets\/steam\/apps\/4435490\/[0-9a-f]{40}\/library_hero/);
+  const snap = buildRealSnapshot({ games: [{ ...GAME, id: 'call-of-duty-mw4', catalogueId: 'call-of-duty-mw4', steamId: '4435490' }], parts: [], sessions: [], journal: [], now: NOW });
+  const cod = snap.games[0];
+  assert.equal(cod.art, STEAM_ASSETS['call-of-duty-mw4'].art);
+  assert.ok(cod.screenshots.length > 0);
+  const images = cod.news.map((n) => n.image).filter(Boolean);
+  assert.equal(new Set(images).size, images.length); // une image différente par actualité
+  assert.ok(images.every((url) => url.startsWith('https://clan.akamai.steamstatic.com/images/')));
+  assert.ok(Object.values(NEWS_IMAGES).flat().filter(Boolean).length > 50);
+
+  const read = assetsFrom({ asset_url_format: 'steam/apps/42/${FILENAME}?t=1', library_hero: 'abc123/library_hero.jpg', library_capsule_2x: 'def/library_capsule_2x.jpg', header: '../../piege.jpg' });
+  assert.equal(read.art, 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/42/abc123/library_hero.jpg?t=1');
+  assert.equal(read.cover, 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/42/def/library_capsule_2x.jpg?t=1');
+  assert.equal(read.header, undefined); // chemin qui cherche à sortir du dossier : refusé
+  assert.deepEqual(assetsFrom({ asset_url_format: 'https://ailleurs.example/${FILENAME}', library_hero: 'x.jpg' }), {});
+});

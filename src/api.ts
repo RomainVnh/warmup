@@ -1,6 +1,6 @@
 import { snapshot } from '../shared/mock-data';
 import { simulateLaunch } from '../shared/launch-sim';
-import { buildRealSnapshot } from '../shared/real-data';
+import { buildRealSnapshot, type RealGameInput } from '../shared/real-data';
 import { cleanFavorites, cleanAllGameOptions, cleanGameOptions, defaultGameOptions, cleanAccount, cleanCollections, cleanProfileCard, defaultAccount, defaultProfileCard, defaultSettings, settingKeys, type Account, type Collection, type DetectionReport, type GameActionResult, type GameOptions, type JournalEntry, type WarmupApi, type ProfileCard, type Settings } from '../shared/types';
 
 declare global {
@@ -100,7 +100,8 @@ const exampleDetection: DetectionReport = {
 };
 
 // Modes de démonstration, dans le navigateur seulement : ?demo=vide (aucun jeu), ?demo=hors-ligne (pas de connexion)
-// ou ?demo=vierge (aperçu de la version vierge, sans aucune donnée d'exemple).
+// ou ?demo=vierge (aperçu de la version vierge, sans aucune donnée d'exemple), ou ?demo=vierge-jeux (version vierge
+// avec quelques jeux « détectés », sans heures ni parties : ce que voit un nouvel utilisateur qui a des jeux Steam).
 export const demo = ((): string => {
   try {
     return new URLSearchParams(window.location.search).get('demo') ?? '';
@@ -110,13 +111,21 @@ export const demo = ((): string => {
 })();
 
 // Journal d'exemple : « Annuler » y marque seulement la ligne, rien n'est modifié sur le PC.
-let demoJournal: JournalEntry[] = demo === 'vierge' ? [] : snapshot.pc.log.map((entry, index) => ({ id: `exemple-${index}`, at: Date.now() - (index + 1) * 5_400_000, title: entry.what, detail: entry.detail, undoable: true, undone: false }));
+let demoJournal: JournalEntry[] = demo.startsWith('vierge') ? [] : snapshot.pc.log.map((entry, index) => ({ id: `exemple-${index}`, at: Date.now() - (index + 1) * 5_400_000, title: entry.what, detail: entry.detail, undoable: true, undone: false }));
 
 const testOnly: GameActionResult = { ok: false, simulated: true, message: 'Dans la version de test, la bibliothèque est un exemple. L\'ajout d\'un jeu fonctionne dans la version vierge, une fois l\'application installée.' };
 
+// Jeux « détectés » de l'aperçu ?demo=vierge-jeux : trois jeux du catalogue et un jeu Steam inconnu de Warmup.
+const DETECTED_EXAMPLE: RealGameInput[] = [
+  ['call-of-duty-mw4', 'Call of Duty®', '4435490'],
+  ['elden-ring', 'ELDEN RING', '1245620'],
+  ['cyberpunk-2077', 'Cyberpunk 2077', '1091500'],
+  [null, 'Hollow Knight', '367520']
+].map(([id, title, steamId]) => ({ id: id ?? 'hollow-knight', title: title!, source: 'Steam', folder: `C:\\Program Files (x86)\\Steam\\steamapps\\common\\${title}`, sizeGb: 40, complete: true, catalogueId: id, steamId: steamId!, manual: false, platformMinutes: null, platformLastPlayed: null }));
+
 // Version « navigateur » : sert à travailler l'interface sans Electron (npm run dev).
 const webApi: WarmupApi = {
-  getSnapshot: async () => (demo === 'vierge' ? buildRealSnapshot({ games: [], parts: snapshot.pc.parts, sessions: [], journal: [], now: Date.now() }) : demo === 'vide' ? { ...snapshot, games: [], notices: snapshot.notices.filter((n) => !n.gameId), reports: [], mods: [] } : snapshot),
+  getSnapshot: async () => (demo === 'vierge' || demo === 'vierge-jeux' ? buildRealSnapshot({ games: demo === 'vierge-jeux' ? DETECTED_EXAMPLE : [], parts: snapshot.pc.parts, sessions: [], journal: [], now: Date.now() }) : demo === 'vide' ? { ...snapshot, games: [], notices: snapshot.notices.filter((n) => !n.gameId), reports: [], mods: [] } : snapshot),
   getSettings: async () => loadSettings(),
   setSettings: async (patch) => {
     const next = { ...loadSettings(), ...patch };

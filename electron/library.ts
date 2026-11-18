@@ -5,6 +5,8 @@ import { buildRealSnapshot, type RealGameInput } from '../shared/real-data';
 import { ago } from '../shared/real-data';
 import type { DetectionReport, DetectSource, FriendStatus, GameActionResult, PcIssue, PcPart, Snapshot, Source } from '../shared/types';
 import { steamData } from './online';
+import { steamAssets } from './steam-assets';
+import { STEAM_ASSETS } from '../shared/catalogue-steam-assets';
 import { detectAll, type MatchedGame } from './detect';
 import { cleanText, safeProgram } from './detect/files';
 import type { LaunchPlan } from './detect/types';
@@ -100,6 +102,12 @@ export async function refreshLibrary(): Promise<DetectionReport> {
   const { report, found } = await detectAll(titles);
   lastFound = found;
   const ids = rebuild(found);
+  // Jeux Steam inconnus du catalogue : leurs visuels officiels sont demandés à Steam (adresses gardées une semaine).
+  const unknown = inputs.filter((g) => g.steamId && !(g.catalogueId && STEAM_ASSETS[g.catalogueId]));
+  if (unknown.length) {
+    const assets = await steamAssets(unknown.map((g) => g.steamId!));
+    inputs = inputs.map((g) => (g.steamId && assets[g.steamId] ? { ...g, assets: assets[g.steamId] } : g));
+  }
   return { ...report, games: report.games.map((g, index) => ({ ...g, libraryId: ids[index] ?? null })) };
 }
 

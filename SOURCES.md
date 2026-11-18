@@ -112,6 +112,16 @@ python3 outils/ajouter-jeu-steam.py <dossier> <numéro-Steam>
 
 Le script remplace les visuels et les succès du jeu. Les actualités et la fiche (`shared/mock-data.ts`) se complètent à la main. Ajoutez ensuite une ligne au tableau ci-dessus.
 
+## Visuels de la version vierge
+
+La version vierge n'embarque aucune image : elle affiche les visuels officiels hébergés par Steam. Leurs adresses exactes (bannière, jaquette, logo, quatre captures, et l'image de chaque actualité) sont relevées par :
+
+```bash
+python3 outils/visuels-steam.py
+```
+
+qui écrit `shared/catalogue-steam-assets.ts`. Les jeux récents rangent leurs visuels dans des dossiers à code : l'adresse habituelle (`…/apps/<numéro>/library_hero.jpg`) ne marche pas pour eux, d'où ce relevé. À relancer après l'ajout d'un jeu au catalogue.
+
 ## Reconstituer les visuels en local
 
 Pour retrouver les visuels de la version de test sur un nouveau poste, relancer le script pour chaque jeu du tableau :

@@ -7,6 +7,14 @@ import { GameArt, GameLogo, Icon, PlayButton, Ring, Segmented, Stat, StatusText,
 
 const shot = (game: Game, index: number) => (game.screenshots.length ? game.screenshots[index % game.screenshots.length] : game.art);
 
+/** Image d'une actualité ; si elle ne répond pas, une capture du jeu, puis sa bannière, puis rien. */
+function NewsImage({ game, src, index }: { game: Game; src: string; index: number }) {
+  const choices = [src, shot(game, index), game.art].filter((url, i, list) => url && list.indexOf(url) === i);
+  const [current, setCurrent] = useState(0);
+  if (current >= choices.length) return <div className="art-fallback">{game.title}</div>;
+  return <img src={choices[current]} alt="" loading="lazy" onError={() => setCurrent((n) => n + 1)} />;
+}
+
 const TABS = [
   { id: 'apercu', label: 'Aperçu' },
   { id: 'sante', label: 'Santé' },
@@ -307,7 +315,7 @@ function Overview({ game, onTab }: { game: Game; onTab(tab: TabId): void }) {
             </div>
             {game.news.slice(0, 2).map((n, i) => (
               <article key={n.title} className="media">
-                <img src={n.image || shot(game, i + 1)} alt="" loading="lazy" />
+                <NewsImage game={game} src={n.image} index={i + 1} />
                 <div>
                   <div className="small muted">{n.tag} · {n.date}</div>
                   <h3>{n.title}</h3>
@@ -507,7 +515,7 @@ function News({ game }: { game: Game }) {
     <div>
       {game.news.map((n, i) => (
         <article key={n.title} className={`media${i === 0 ? ' big' : ''}`}>
-          <img src={n.image || shot(game, i + 1)} alt="" loading="lazy" />
+          <NewsImage game={game} src={n.image} index={i + 1} />
           <div>
             <div className="small muted">{n.tag} · {n.date}</div>
             <h3>{n.title}</h3>

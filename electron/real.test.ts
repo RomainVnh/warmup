@@ -83,8 +83,8 @@ test('bibliothèque vierge : rien d\'inventé, heures et parties réelles', () =
   assert.equal(elden.hours, 10); // 600 minutes d'après Steam
   assert.equal(elden.lastPlayed, 'Il y a 2 jours');
   assert.deepEqual([elden.friends.length, elden.reviews.list.length, elden.achievements.done, elden.changes.length], [0, 0, 0, 0]);
-  assert.equal(elden.art, 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1245620/library_hero.jpg'); // visuel chargé chez Steam
-  assert.ok(elden.news.every((n) => n.image === ''));
+  assert.ok(elden.art.startsWith('https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1245620/')); // visuel chargé chez Steam
+  assert.ok(elden.news.every((n) => n.image === '' || n.image.startsWith('https://clan.akamai.steamstatic.com/'))); // image de l'article chez Steam, jamais dans le dépôt
 
   const unknown = snap.games.find((g) => g.id === 'inconnu')!;
   assert.equal(unknown.cover, 'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4242/library_600x900_2x.jpg');

@@ -1,5 +1,6 @@
 import { steamAchievements } from './achievements-data';
 import { CATALOGUE_STEAM_IDS, steamAchievementIcon, steamArt } from './catalogue-steam';
+import { NEWS_IMAGES, STEAM_ASSETS, type SteamAssets } from './catalogue-steam-assets';
 import { guides } from './mock-extra';
 import { snapshot as catalogue } from './mock-data';
 import { gameNews } from './news-data';
@@ -26,6 +27,8 @@ export interface RealGameInput {
   manual: boolean;
   /** Version installée (build Steam), pour repérer une mise à jour du jeu. */
   version?: string | null;
+  /** Visuels officiels trouvés chez Steam pour un jeu que le catalogue ne connaît pas. */
+  assets?: SteamAssets;
   /** Minutes jouées et dernière partie, d'après la plateforme (Steam) ; null si elle ne les donne pas. */
   platformMinutes: number | null;
   platformLastPlayed: number | null;
@@ -179,8 +182,12 @@ function game(input: RealGameInput, parts: PcPart[], sessions: SessionRecord[], 
   const warn = real.checks.filter((c) => c.status === 'warn').length;
   // Visuels officiels chargés chez Steam (le dépôt et l'application publiés n'en contiennent aucun) :
   // d'après le numéro du catalogue pour un jeu reconnu, sinon d'après celui trouvé par la détection.
+  // Adresses exactes relevées pour le catalogue (outils/visuels-steam.py), sinon celles trouvées chez Steam au démarrage,
+  // sinon l'adresse habituelle de Steam. Une image qui ne répond pas laisse place au titre écrit.
   const appId = (known && CATALOGUE_STEAM_IDS[known.id]) || input.steamId;
-  const remote = appId ? steamArt(appId) : null;
+  const pinned: SteamAssets | undefined = (known && STEAM_ASSETS[known.id]) || input.assets;
+  const guess = appId ? steamArt(appId) : null;
+  const remote = pinned ? { art: pinned.art ?? '', cover: pinned.cover ?? '', logo: pinned.logo ?? null } : guess;
   const list = known ? (steamAchievements[known.id] ?? []).map((a) => ({ ...a, icon: steamAchievementIcon(known.id, a.icon), when: null })) : [];
   return {
     id: input.id,
@@ -192,7 +199,7 @@ function game(input: RealGameInput, parts: PcPart[], sessions: SessionRecord[], 
     cover: remote?.cover ?? '',
     // Un jeu dont la bannière contient déjà le titre n'a pas de logo dans le catalogue : on n'en ajoute pas.
     logo: remote && (!known || known.logo) ? remote.logo : null,
-    screenshots: [],
+    screenshots: pinned?.shots ?? [],
     sizeGb: input.sizeGb ?? 0,
     hours: Math.round(minutes / 6) / 10,
     lastPlayed: ago(last, now),
@@ -210,8 +217,8 @@ function game(input: RealGameInput, parts: PcPart[], sessions: SessionRecord[], 
     modCount: 0,
     achievements: { done: 0, total: list.length, list },
     friends: [],
-    // Actualités du catalogue, sans leur image (qui n'est pas publiée) : la bannière du jeu la remplace.
-    news: known ? (gameNews[known.id] ?? []).map((n) => ({ ...n, image: '' })) : [],
+    // Actualités du catalogue, avec l'image de chaque article chez Steam (outils/visuels-steam.py).
+    news: known ? (gameNews[known.id] ?? []).map((n, i) => ({ ...n, image: NEWS_IMAGES[known.id]?.[i] ?? '' })) : [],
     reviews: { percent: 0, count: 0, label: '', list: [] },
     checks: real.checks,
     // Depuis la dernière partie réussie : ce qui diffère dans le PC d'aujourd'hui et dans le jeu installé.

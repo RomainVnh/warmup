@@ -11,7 +11,7 @@ const csp = (): Plugin => ({
   name: 'warmup-csp',
   apply: 'build',
   transformIndexHtml(html) {
-    const rule = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://shared.akamai.steamstatic.com https://shared.fastly.steamstatic.com; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'";
+    const rule = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://shared.akamai.steamstatic.com https://shared.fastly.steamstatic.com https://clan.akamai.steamstatic.com; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'";
     return html.replace('<head>', `<head>\n    <meta http-equiv="Content-Security-Policy" content="${rule}">`);
   }
 });
