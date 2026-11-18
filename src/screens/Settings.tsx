@@ -88,8 +88,8 @@ export function SettingsPage() {
         <h2 className="h2">À propos</h2>
         <div className="group">
           <p className="muted" style={{ paddingTop: 16 }}>{data.demo
-            ? 'Warmup 0.4.0, version de test. Les jeux sont réels ; les mesures, heures et incidents affichés sont des données d\'exemple.'
-            : 'Warmup 0.4.0. Tout ce qui est affiché est lu sur ce PC : jeux installés, matériel, heures de jeu et parties mesurées par Warmup.'}</p>
+            ? 'Warmup 0.5.0, version de test. Les jeux sont réels ; les mesures, heures et incidents affichés sont des données d\'exemple.'
+            : 'Warmup 0.5.0. Tout ce qui est affiché est lu sur ce PC : jeux installés, matériel, heures de jeu et parties mesurées par Warmup.'}</p>
         </div>
       </div>
     </div>

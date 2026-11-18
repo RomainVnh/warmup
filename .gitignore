@@ -26,3 +26,4 @@ docs/captures/
 
 # PresentMon : ajouté seulement au moment de fabriquer l installateur Windows (voir build/presentmon/LISEZ-MOI.txt)
 build/presentmon/*.exe
+build/presentmon/LICENSE-PresentMon.txt

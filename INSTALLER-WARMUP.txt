@@ -8,13 +8,13 @@ Ils ne sont pas dans le code du dépôt : GitHub refuse les fichiers de plus de
 100 Mo dans un dépôt, et chaque installateur en pèse près de 200.
 Après fabrication, ils sont aussi dans le dossier « installateurs » du projet :
 
-  Warmup-0.4.0-mac-arm64.dmg    pour un Mac récent (puce Apple)
-  Warmup-0.4.0-win-x64.exe      pour un PC Windows 10 ou 11
+  Warmup-0.5.0-mac-arm64.dmg    pour un Mac récent (puce Apple)
+  Warmup-0.5.0-win-x64.exe      pour un PC Windows 10 ou 11
 
 
 SUR UN PC WINDOWS
 -----------------
-1. Copiez Warmup-0.4.0-win-x64.exe sur le PC (clé USB, partage, envoi).
+1. Copiez Warmup-0.5.0-win-x64.exe sur le PC (clé USB, partage, envoi).
 2. Double-cliquez dessus.
 3. Windows affiche « Windows a protégé votre ordinateur », car l'installateur
    n'est pas encore signé. Cliquez sur « Informations complémentaires »,
@@ -27,7 +27,7 @@ Pour le retirer : Paramètres de Windows > Applications > Warmup > Désinstaller
 
 SUR UN MAC
 ----------
-1. Double-cliquez sur Warmup-0.4.0-mac-arm64.dmg.
+1. Double-cliquez sur Warmup-0.5.0-mac-arm64.dmg.
 2. Faites glisser Warmup dans le dossier Applications.
 3. Au premier lancement, macOS refuse l'ouverture, car l'application n'est pas
    encore signée. Ouvrez Réglages Système > Confidentialité et sécurité,
